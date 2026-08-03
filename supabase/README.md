@@ -10,4 +10,6 @@ Then run `migrations/20260803_seed_sources.sql` in the SQL Editor to add the ini
 
 For an already set up project, run `migrations/20260803_add_youtube_source.sql` to add the official YouTube Blog feed. Its entries are automatically assigned to **Video / Andere Branchen** and still land in the review queue first.
 
+Then run `migrations/20260803_add_remaining_sources.sql` to add Press Gazette, Podnews, Hot Pod, Spotify Newsroom, Meta Newsroom and Horizont. Press Gazette, Podnews and Horizont use public RSS feeds; the other sources are kept active for manual editorial research.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.

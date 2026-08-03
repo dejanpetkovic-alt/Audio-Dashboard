@@ -16,7 +16,7 @@ Ein internes Audio-/Video-Best-Practice-Dashboard für digitale Medienprodukte.
 - Gemeinsamer Passwortzugang mit signierter, 14 Tage gültiger HttpOnly-Session.
 - Persönliche Merkliste (UI-Prototyp; Persistenzschnittstelle vorbereitet).
 - Review-Queue und Quellenverwaltung.
-- Öffentliche RSS-Importe von Nieman Lab, Digiday und dem YouTube Official Blog; neue Treffer werden immer zuerst redaktionell geprüft.
+- Öffentliche RSS-Importe von Nieman Lab, Digiday, Press Gazette, Podnews, Horizont und dem YouTube Official Blog; neue Treffer werden immer zuerst redaktionell geprüft.
 - API: `GET /api/cases` und `GET /api/health`.
 
 ## Produktionsintegration

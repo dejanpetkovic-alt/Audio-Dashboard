@@ -16,6 +16,9 @@ const otherIndustryPattern = /\b(brand|retail|commerce|marketing|agency|fitness|
 // They prevent platform cases from being sorted into the publisher area.
 const sourceRules: Record<string, SourceRule> = {
   "YouTube Official Blog": { medium: "video", sector: "other_industry", tags: ["YouTube", "Videoplattform"] },
+  "Podnews": { medium: "audio", sector: "publisher", tags: ["Podcasting", "Audio-Branche"] },
+  "Spotify Newsroom": { sector: "other_industry", tags: ["Spotify", "Streaming"] },
+  "Meta Newsroom": { sector: "other_industry", tags: ["Meta", "Plattform"] },
 };
 
 function classify(title: string, body: string, sourceName: string) {
