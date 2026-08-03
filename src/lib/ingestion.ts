@@ -20,6 +20,8 @@ const sourceRules: Record<string, SourceRule> = {
   "Podnews": { medium: "audio", sector: "publisher", tags: ["Podcasting", "Audio-Branche"] },
   "Spotify Newsroom": { sector: "other_industry", tags: ["Spotify", "Streaming"] },
   "Meta Newsroom": { sector: "other_industry", tags: ["Meta", "Plattform"] },
+  "Google Search Central Blog": { sector: "other_industry", tags: ["Google", "Discoverability"] },
+  "Netflix TechBlog": { sector: "other_industry", tags: ["Netflix", "Streaming-Produkt"] },
 };
 
 function classify(title: string, body: string, sourceName: string) {

@@ -20,4 +20,6 @@ Run `migrations/20260803_trend_automation.sql` to enable the automated rule-base
 
 Run `migrations/20260803_trend_radar_direct_output.sql` to show automated trend signals directly, without a separate trend approval step.
 
+Run `migrations/20260803_add_product_innovation_sources.sql` to add product and innovation sources. The Guardian Engineering, The New York Times Open, Google Search Central Blog and Netflix TechBlog are imported via RSS; BBC R&D, Schibsted, Axel Springer and Zeitspace are kept as manual editorial sources.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
