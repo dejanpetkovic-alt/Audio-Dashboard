@@ -100,3 +100,8 @@ alter table public.performance_metrics enable row level security;
 alter table public.ingestion_runs enable row level security;
 alter table public.review_decisions enable row level security;
 alter table public.user_saved_cases enable row level security;
+
+-- Server-side Next.js routes use the service role. Browser roles receive no grants.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;

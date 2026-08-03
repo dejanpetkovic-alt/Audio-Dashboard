@@ -7,3 +7,5 @@
 The application will access these tables server-side using the Supabase service key; no browser-level RLS policies are added at this stage.
 
 Then run `migrations/20260803_seed_sources.sql` in the SQL Editor to add the initial source registry.
+
+If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
