@@ -22,4 +22,6 @@ Run `migrations/20260803_trend_radar_direct_output.sql` to show automated trend 
 
 Run `migrations/20260803_add_product_innovation_sources.sql` to add product and innovation sources. The Guardian Engineering, The New York Times Open, Google Search Central Blog and Netflix TechBlog are imported via RSS; BBC R&D, Schibsted, Axel Springer and Zeitspace are kept as manual editorial sources.
 
+Run `migrations/20260803_add_publisher_source_list.sql` to add the remaining titles from the publisher source list. Süddeutsche Zeitung, BBC, The Guardian, NPR and Poynter are activated for RSS import; the other listed publishers are added for manual research until a suitable public feed is verified.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
