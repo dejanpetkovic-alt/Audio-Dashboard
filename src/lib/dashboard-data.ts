@@ -1,4 +1,4 @@
-import type { Case, Metric } from "./types";
+import type { Case, Metric, ProductFeature } from "./types";
 import { getSupabaseAdmin } from "./supabase";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
@@ -10,6 +10,7 @@ type DatabaseCase = {
 };
 type DatabaseSource = { id: string; name: string; homepage_url: string; feed_url: string | null; access: "public" | "member_link_only"; active: boolean; last_fetched_at: string | null };
 type DatabaseRun = { source_id: string; status: "running" | "completed" | "failed"; started_at: string; error: string | null };
+type DatabaseFeature = { id: string; title: string; area: "audio" | "video"; status: "live" | "in_progress" | "planned"; surfaces: string[]; description: string };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -17,6 +18,16 @@ export type SourceOverview = {
 };
 
 const sourceFallback = ["Alle Quellen", "INMA", "The Audiencers", "WAN-IFRA", "Nieman Lab", "Digiday"];
+const featureFallback: ProductFeature[] = [
+  { id: "tts-apps", title: "Artikelvertonung in den Apps", area: "Audio", status: "Live", surfaces: ["Webview", "E-Paper", "Nativer Player"], description: "Vertonte Artikel aus Webview und E-Paper werden im nativen Player ausgespielt." },
+  { id: "morning-reports", title: "KI-generierte Morgenreports", area: "Audio", status: "Live", surfaces: ["Webview", "Lokalteile"], description: "Tägliches Audio-Briefing mit drei aktuellen Artikeln und Wetter für jeden Lokalteil." },
+  { id: "topic-reports", title: "KI-generierte Themenreports", area: "Audio", status: "Live", surfaces: ["Webview", "Audience-Themen"], description: "Thematische Briefings für Angebote wie Familie oder Blaulicht." },
+  { id: "audio-hub", title: "Audio-Hub", area: "Audio", status: "Live", surfaces: ["App", "Audio"], description: "Zentraler Einstiegspunkt für alle Audio-Themen und -Formate." },
+  { id: "manual-podcasts", title: "Redaktionelle Podcasts", area: "Audio", status: "Live", surfaces: ["Fußball", "True Crime", "Essen"], description: "Manuell produzierte Podcastformate für ausgewählte Themenfelder." },
+  { id: "article-video", title: "Video-Player im Artikel", area: "Video", status: "Live", surfaces: ["Artikel", "Eigene Produktionen"], description: "Eigene Videoproduktionen werden direkt im passenden Artikel ausgespielt." },
+  { id: "vertical-feed", title: "Vertical-Feed-Player", area: "Video", status: "Live", surfaces: ["App", "Vertikalvideo"], description: "Ein Reel-ähnlicher Feed für eigene vertikale Videos." },
+  { id: "video-hub", title: "Video-Hub", area: "Video", status: "Live", surfaces: ["App", "Video"], description: "Zentraler Einstiegspunkt für alle Video-Themen und -Formate." },
+];
 const labels: Record<string, string> = { audio: "Audio", video: "Video", publisher: "Publisher", other_industry: "Andere Branchen", dach: "DACH", international: "International", web: "Web", app: "App", web_and_app: "Web & App", review: "In Prüfung", published: "Freigegeben", rejected: "Abgelehnt" };
 const label = (value: string) => labels[value] ?? value;
 
@@ -36,14 +47,19 @@ function mapCase(item: DatabaseCase): Case {
   };
 }
 
+function mapFeature(feature: DatabaseFeature): ProductFeature {
+  return { id: feature.id, title: feature.title, area: feature.area === "audio" ? "Audio" : "Video", status: feature.status === "live" ? "Live" : feature.status === "in_progress" ? "In Arbeit" : "Geplant", surfaces: feature.surfaces ?? [], description: feature.description };
+}
+
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
+      supabase.from("product_features").select("id,title,area,status,surfaces,description").order("area").order("created_at"),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -54,9 +70,10 @@ export async function getDashboardData() {
       id: source.id, name: source.name, homepageUrl: source.homepage_url, feedUrl: source.feed_url, access: source.access,
       active: source.active, lastFetchedAt: source.last_fetched_at, latestRunStatus: latestRuns.get(source.id)?.status ?? null, latestRunError: latestRuns.get(source.id)?.error ?? null,
     }));
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, connected: true, loadError: false };
+    const features = featuresResult.error ? featureFallback : ((featuresResult.data ?? []) as DatabaseFeature[]).map(mapFeature);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, connected: false, loadError: true };
   }
 }

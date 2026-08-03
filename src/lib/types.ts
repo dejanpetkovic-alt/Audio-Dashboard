@@ -10,3 +10,8 @@ export type Case = {
   format: string; tags: string[]; publishedAt: string; status: Status; metrics: Metric[];
   action: string; context: string; saved?: boolean; isNew?: boolean;
 };
+
+export type ProductFeature = {
+  id: string; title: string; area: "Audio" | "Video"; status: "Live" | "In Arbeit" | "Geplant";
+  surfaces: string[]; description: string;
+};

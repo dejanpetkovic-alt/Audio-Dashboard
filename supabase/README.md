@@ -12,4 +12,6 @@ For an already set up project, run `migrations/20260803_add_youtube_source.sql` 
 
 Then run `migrations/20260803_add_remaining_sources.sql` to add Press Gazette, Podnews, Hot Pod, Spotify Newsroom, Meta Newsroom and Horizont. Press Gazette, Podnews and Horizont use public RSS feeds; the other sources are kept active for manual editorial research.
 
+Run `migrations/20260803_product_features.sql` to add the internal audio/video product inventory. It creates the baseline for the later trend and industry benchmark.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
