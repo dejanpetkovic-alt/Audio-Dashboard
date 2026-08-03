@@ -7,8 +7,9 @@ export type Case = {
   id: string; title: string; source: string; sourceType: "Netzwerk" | "Publisher" | "Plattform";
   url: string; excerpt: string; summary: string; medium: Medium; sector: Sector;
   market: "DACH" | "International"; platform: "Web" | "App" | "Web & App";
-  format: string; tags: string[]; publishedAt: string; status: Status; metrics: Metric[];
+  format: string; tags: string[]; publishedAt: string; discoveredAt?: string; status: Status; metrics: Metric[];
   action: string; context: string; saved?: boolean; isNew?: boolean;
+  relevanceScore?: number; priority?: "Sofort prüfen" | "Beobachten" | "Hintergrund"; signalType?: "Produkt" | "Feature" | "Trend" | "Case" | "Analyse" | "Report";
 };
 
 export type ProductFeature = {

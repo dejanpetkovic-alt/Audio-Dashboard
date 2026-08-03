@@ -5,7 +5,8 @@ type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: 
 type DatabaseCase = {
   id: string; title: string; canonical_url: string; excerpt: string | null; summary: string | null; medium: "audio" | "video";
   sector: "publisher" | "other_industry"; market: "dach" | "international"; platform: "web" | "app" | "web_and_app";
-  format: string | null; tags: string[]; published_at: string | null; status: "review" | "published" | "rejected";
+  format: string | null; tags: string[]; published_at: string | null; discovered_at: string; status: "review" | "published" | "rejected";
+  relevance_score: number; priority: "review_now" | "watch" | "background"; signal_type: "product" | "feature" | "trend" | "case" | "analysis" | "report";
   sources: { name: string } | null; performance_metrics: DatabaseMetric[] | null;
 };
 type DatabaseSource = { id: string; name: string; homepage_url: string; feed_url: string | null; access: "public" | "member_link_only"; active: boolean; last_fetched_at: string | null };
@@ -47,9 +48,10 @@ function mapCase(item: DatabaseCase): Case {
     id: item.id, title: item.title, source: item.sources?.name ?? "Unbekannte Quelle", sourceType: "Netzwerk", url: item.canonical_url,
     excerpt: item.excerpt ?? "", summary: item.summary ?? "Noch keine redaktionelle Kurzfassung.", medium: label(item.medium) as Case["medium"],
     sector: label(item.sector) as Case["sector"], market: label(item.market) as Case["market"], platform: label(item.platform) as Case["platform"],
-    format: item.format ?? "Best Practice", tags: item.tags ?? [], publishedAt: item.published_at ?? new Date().toISOString(),
+    format: item.format ?? "Best Practice", tags: item.tags ?? [], publishedAt: item.published_at ?? new Date().toISOString(), discoveredAt: item.discovered_at,
     status: label(item.status) as Case["status"], metrics: (item.performance_metrics ?? []).map(mapMetric),
     context: item.excerpt ?? "Noch nicht ergänzt.", action: item.summary ?? "Noch nicht ergänzt.", isNew: false,
+    relevanceScore: item.relevance_score ?? 3, priority: item.priority === "review_now" ? "Sofort prüfen" : item.priority === "background" ? "Hintergrund" : "Beobachten", signalType: ({ product: "Produkt", feature: "Feature", trend: "Trend", case: "Case", analysis: "Analyse", report: "Report" } as const)[item.signal_type ?? "case"],
   };
 }
 

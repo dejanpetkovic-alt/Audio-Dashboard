@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { getSupabaseAdmin } from "./supabase";
 import { generateTrendDrafts } from "./trend-automation";
+import { inferCaseIntelligence } from "./case-intelligence";
 
 type Source = { id: string; name: string; feed_url: string | null };
 type FeedItem = { title?: unknown; link?: unknown; guid?: unknown; pubDate?: unknown; published?: unknown; description?: unknown; "content:encoded"?: unknown };
@@ -71,7 +72,8 @@ export async function runIngestion() {
         const classification = classify(title, excerpt, source.name);
         if (!title || !url || !classification) return [];
         const parsedDate = new Date(text(item.pubDate || item.published));
-        return [{ source_id: source.id, canonical_url: url, external_id: text(item.guid) || null, title, excerpt, summary: excerpt, ...classification, format: "Artikel", published_at: Number.isNaN(parsedDate.valueOf()) ? null : parsedDate.toISOString(), status: "review" }];
+        const intelligence = inferCaseIntelligence(title, excerpt, classification.sector, source.name, classification.tags);
+        return [{ source_id: source.id, canonical_url: url, external_id: text(item.guid) || null, title, excerpt, summary: excerpt, ...classification, tags: intelligence.tags, relevance_score: intelligence.relevanceScore, priority: intelligence.priority, signal_type: intelligence.signalType, format: "Artikel", published_at: Number.isNaN(parsedDate.valueOf()) ? null : parsedDate.toISOString(), status: "review" }];
       });
       const { error: insertError } = await supabase.from("cases").upsert(candidates, { onConflict: "canonical_url", ignoreDuplicates: true });
       if (insertError) throw new Error(insertError.message);
