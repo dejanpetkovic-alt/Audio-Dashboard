@@ -1,4 +1,4 @@
-import type { Case, Metric, ProductFeature, TrendSignal } from "./types";
+import type { Case, Metric, ProductFeature, PublisherFeatureObservation, TrendSignal } from "./types";
 import { getSupabaseAdmin } from "./supabase";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
@@ -14,6 +14,8 @@ type DatabaseFeature = { id: string; title: string; area: "audio" | "video"; sta
 type DatabaseTrend = { id: string; title: string; summary: string; area: "audio" | "video" | "both"; maturity: "early_signal" | "growing" | "standard"; status: "draft" | "published"; origin: "manual" | "automation"; observed_at: string };
 type DatabaseTrendEvidence = { id: string; trend_id: string; source_name: string; title: string; url: string; published_at: string | null };
 type DatabaseTrendAssessment = { trend_id: string; product_feature_id: string; status: "covered" | "gap" | "watch" | "pioneer"; rationale: string };
+type Related<T> = T | T[] | null;
+type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }> };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -61,11 +63,18 @@ function mapTrend(trend: DatabaseTrend, evidence: DatabaseTrendEvidence[], asses
   return { id: trend.id, title: trend.title, summary: trend.summary, area, maturity, status: trend.status === "published" ? "Veröffentlicht" : "Entwurf", origin: trend.origin === "automation" ? "Automatisch erkannt" : "Manuell", observedAt: trend.observed_at, evidence: evidence.filter((item) => item.trend_id === trend.id).map((item) => ({ id: item.id, source: item.source_name, title: item.title, url: item.url, publishedAt: item.published_at })), assessments: assessments.filter((item) => item.trend_id === trend.id).map((item) => ({ featureId: item.product_feature_id, status: state[item.status], rationale: item.rationale })) };
 }
 
+function mapPublisherObservation(item: DatabasePublisherFeatureObservation): PublisherFeatureObservation {
+  const labels = { current: "Aktuell dokumentiert", historical: "Historisch", unclear: "Unklar" } as const;
+  const source = Array.isArray(item.sources) ? item.sources[0] : item.sources;
+  const productFeature = Array.isArray(item.product_features) ? item.product_features[0] : item.product_features;
+  return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", observedFeature: item.observed_feature, platforms: item.platforms ?? [], status: labels[item.status], evidenceUrl: item.evidence_url, evidenceLabel: item.evidence_label, observedAt: item.observed_at, notes: item.notes ?? "", productFeatureId: productFeature?.id ?? null, productFeatureTitle: productFeature?.title ?? null };
+}
+
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
@@ -73,6 +82,7 @@ export async function getDashboardData() {
       supabase.from("trend_signals").select("id,title,summary,area,maturity,status,origin,observed_at").order("observed_at", { ascending: false }),
       supabase.from("trend_evidence").select("id,trend_id,source_name,title,url,published_at"),
       supabase.from("trend_feature_assessments").select("trend_id,product_feature_id,status,rationale"),
+      supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,observed_at,notes,sources(name),product_features(id,title)").order("observed_at", { ascending: false }),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -85,9 +95,10 @@ export async function getDashboardData() {
     }));
     const features = featuresResult.error ? featureFallback : ((featuresResult.data ?? []) as DatabaseFeature[]).map(mapFeature);
     const trends = trendsResult.error ? [] : ((trendsResult.data ?? []) as DatabaseTrend[]).map((item) => mapTrend(item, evidenceResult.error ? [] : (evidenceResult.data ?? []) as DatabaseTrendEvidence[], assessmentsResult.error ? [] : (assessmentsResult.data ?? []) as DatabaseTrendAssessment[]));
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, connected: true, loadError: false };
+    const publisherObservations = publisherObservationsResult.error ? [] : ((publisherObservationsResult.data ?? []) as DatabasePublisherFeatureObservation[]).map(mapPublisherObservation);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], connected: false, loadError: true };
   }
 }

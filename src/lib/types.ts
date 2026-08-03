@@ -23,3 +23,9 @@ export type TrendSignal = {
   maturity: "Frühes Signal" | "Im Aufschwung" | "Branchenstandard"; status: "Entwurf" | "Veröffentlicht";
   origin: "Manuell" | "Automatisch erkannt"; observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[];
 };
+
+export type PublisherFeatureObservation = {
+  id: string; publisher: string; observedFeature: string; platforms: string[];
+  status: "Aktuell dokumentiert" | "Historisch" | "Unklar"; evidenceUrl: string; evidenceLabel: string;
+  observedAt: string; notes: string; productFeatureId: string | null; productFeatureTitle: string | null;
+};

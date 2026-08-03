@@ -24,4 +24,6 @@ Run `migrations/20260803_add_product_innovation_sources.sql` to add product and 
 
 Run `migrations/20260803_add_publisher_source_list.sql` to add the remaining titles from the publisher source list. Süddeutsche Zeitung, BBC, The Guardian, NPR and Poynter are activated for RSS import; the other listed publishers are added for manual research until a suitable public feed is verified.
 
+Run `migrations/20260803_publisher_feature_observations.sql` after the product-feature and publisher-source migrations to add the Publisher-Feature-Monitor. It also seeds the first publicly documented observations for Süddeutsche Zeitung.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
