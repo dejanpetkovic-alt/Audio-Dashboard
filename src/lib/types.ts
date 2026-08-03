@@ -15,3 +15,11 @@ export type ProductFeature = {
   id: string; title: string; area: "Audio" | "Video"; status: "Live" | "In Arbeit" | "Geplant";
   surfaces: string[]; description: string;
 };
+
+export type TrendAssessment = { featureId: string; status: "Abgedeckt" | "Lücke" | "Beobachten" | "Pionier"; rationale: string };
+export type TrendEvidence = { id: string; source: string; title: string; url: string; publishedAt: string | null };
+export type TrendSignal = {
+  id: string; title: string; summary: string; area: "Audio" | "Video" | "Audio & Video";
+  maturity: "Frühes Signal" | "Im Aufschwung" | "Branchenstandard"; status: "Entwurf" | "Veröffentlicht";
+  observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[];
+};

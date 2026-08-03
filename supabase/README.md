@@ -14,4 +14,6 @@ Then run `migrations/20260803_add_remaining_sources.sql` to add Press Gazette, P
 
 Run `migrations/20260803_product_features.sql` to add the internal audio/video product inventory. It creates the baseline for the later trend and industry benchmark.
 
+Run `migrations/20260803_trend_radar.sql` after the product-feature migration to add the editorial Trend-Radar, including evidence links and the feature comparison model.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.

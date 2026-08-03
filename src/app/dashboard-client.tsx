@@ -1,10 +1,11 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import type { Case, Medium, ProductFeature, Sector } from "@/lib/types";
+import type { Case, Medium, ProductFeature, Sector, TrendSignal } from "@/lib/types";
 import type { SourceOverview } from "@/lib/dashboard-data";
 import CaseEditor from "./case-editor";
 import FeatureInventory from "./feature-inventory";
+import TrendRadar from "./trend-radar";
 
 const mediumOptions: ("Alle" | Medium)[] = ["Alle", "Audio", "Video"];
 const sectorOptions: ("Alle" | Sector)[] = ["Alle", "Publisher", "Andere Branchen"];
@@ -17,7 +18,7 @@ function CaseCard({ item, saved, onSave, onOpen }: { item: Case; saved: boolean;
   return <article className="case-card"><div className="card-topline"><span className="source">{item.source}</span><span className="date">{new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "short" }).format(new Date(item.publishedAt))}</span></div><div className="badges"><Badge tone={item.medium === "Audio" ? "audio" : "video"}>{item.medium}</Badge><Badge>{item.sector}</Badge>{item.isNew && <Badge tone="new">Neu</Badge>}</div><h3>{item.title}</h3><p>{item.summary}</p><div className="tag-row">{item.tags.slice(0, 2).map((tag) => <span key={tag}>#{tag}</span>)}</div><div className="card-actions"><button className="text-button" onClick={() => onOpen(item)}>Case ansehen <span>→</span></button><button className={`save-button ${saved ? "saved" : ""}`} aria-label="Case speichern" onClick={() => onSave(item.id)}>{saved ? "★ Gespeichert" : "☆ Merken"}</button></div></article>;
 }
 
-export default function Dashboard({ initialCases, sourceNames, sources, features, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; connected: boolean; loadError: boolean }) {
+export default function Dashboard({ initialCases, sourceNames, sources, features, trends, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; trends: TrendSignal[]; connected: boolean; loadError: boolean }) {
   const [medium, setMedium] = useState<"Alle" | Medium>("Alle");
   const [sector, setSector] = useState<"Alle" | Sector>("Alle");
   const [source, setSource] = useState("Alle Quellen");
@@ -26,15 +27,16 @@ export default function Dashboard({ initialCases, sourceNames, sources, features
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const [activeCase, setActiveCase] = useState<Case | null>(null);
   const [editingCase, setEditingCase] = useState<Case | null>(null);
-  const [view, setView] = useState<"dashboard" | "review" | "sources" | "offer">("dashboard");
+  const [view, setView] = useState<"dashboard" | "review" | "sources" | "offer" | "trends">("dashboard");
   const filtered = useMemo(() => initialCases.filter((item) => (medium === "Alle" || item.medium === medium) && (sector === "Alle" || item.sector === sector) && (source === "Alle Quellen" || item.source === source) && `${item.title} ${item.summary} ${item.tags.join(" ")}`.toLowerCase().includes(query.toLowerCase())), [initialCases, medium, sector, source, query]);
   const approved = filtered.filter((item) => item.status === "Freigegeben" || approvedIds.includes(item.id));
   const toggleSaved = (id: string) => setSaved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
 
-  return <main><aside className="sidebar"><div className="brand"><div className="brand-mark">M</div><span>media<span>pulse</span></span></div><nav><button className={view === "dashboard" ? "nav-active" : ""} onClick={() => setView("dashboard")}><span>▦</span> Dashboard</button><button className={view === "offer" ? "nav-active" : ""} onClick={() => setView("offer")}><span>◫</span> Unser Angebot</button><button><span>☆</span> Meine Merkliste <em>{saved.length}</em></button></nav><div className="nav-section"><p>REDAKTION</p><button className={view === "review" ? "nav-active" : ""} onClick={() => setView("review")}><span>✓</span> Review-Queue <em>{initialCases.filter((item) => item.status === "In Prüfung").length}</em></button><button className={view === "sources" ? "nav-active" : ""} onClick={() => setView("sources")}><span>◉</span> Quellen</button></div><div className="profile"><div className="avatar">DP</div><div><strong>Daniel Petkovic</strong><small>Redaktion</small></div><span>⌄</span></div></aside>
+  return <main><aside className="sidebar"><div className="brand"><div className="brand-mark">M</div><span>media<span>pulse</span></span></div><nav><button className={view === "dashboard" ? "nav-active" : ""} onClick={() => setView("dashboard")}><span>▦</span> Dashboard</button><button className={view === "trends" ? "nav-active" : ""} onClick={() => setView("trends")}><span>◌</span> Trend-Radar</button><button className={view === "offer" ? "nav-active" : ""} onClick={() => setView("offer")}><span>◫</span> Unser Angebot</button><button><span>☆</span> Meine Merkliste <em>{saved.length}</em></button></nav><div className="nav-section"><p>REDAKTION</p><button className={view === "review" ? "nav-active" : ""} onClick={() => setView("review")}><span>✓</span> Review-Queue <em>{initialCases.filter((item) => item.status === "In Prüfung").length}</em></button><button className={view === "sources" ? "nav-active" : ""} onClick={() => setView("sources")}><span>◉</span> Quellen</button></div><div className="profile"><div className="avatar">DP</div><div><strong>Daniel Petkovic</strong><small>Redaktion</small></div><span>⌄</span></div></aside>
     <section className="content"><header className="topbar"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cases, Themen oder Quellen durchsuchen…" /></div><div className="header-actions"><button className="icon-button">◌</button><button className="notification">♧<i>3</i></button><span className="avatar small">DP</span></div></header>
       {view === "dashboard" && <DashboardHome approved={approved} initialCases={initialCases} sourceNames={sourceNames} connected={connected} loadError={loadError} medium={medium} sector={sector} source={source} setMedium={setMedium} setSector={setSector} setSource={setSource} onOpen={setActiveCase} saved={saved} onSave={toggleSaved} onReview={() => setView("review")} />}
       {view === "offer" && <FeatureInventory features={features} />}
+      {view === "trends" && <TrendRadar trends={trends} features={features} />}
       {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} onEdit={setEditingCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds((current) => [...current, id]); }} />}
       {view === "sources" && <Sources sources={sources} />}
     </section>{activeCase && <CaseDetail item={activeCase} saved={saved.includes(activeCase.id)} onClose={() => setActiveCase(null)} onSave={toggleSaved} />}{editingCase && <CaseEditor item={editingCase} onClose={() => setEditingCase(null)} onSaved={() => window.location.reload()} />}</main>;
