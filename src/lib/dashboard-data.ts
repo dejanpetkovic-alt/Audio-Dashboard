@@ -1,7 +1,7 @@
 import type { Case, Metric } from "./types";
 import { getSupabaseAdmin } from "./supabase";
 
-type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_label: string };
+type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
 type DatabaseCase = {
   id: string; title: string; canonical_url: string; excerpt: string | null; summary: string | null; medium: "audio" | "video";
   sector: "publisher" | "other_industry"; market: "dach" | "international"; platform: "web" | "app" | "web_and_app";
@@ -22,7 +22,7 @@ const label = (value: string) => labels[value] ?? value;
 
 function mapMetric(metric: DatabaseMetric): Metric {
   const value = metric.value_numeric !== null ? `${metric.value_numeric}${metric.unit ? ` ${metric.unit}` : ""}` : (metric.value_text ?? "nicht veröffentlicht");
-  return { label: label(metric.kind).replaceAll("_", " "), value, source: [metric.evidence_label, metric.period].filter(Boolean).join(" · ") };
+  return { label: label(metric.kind).replaceAll("_", " "), value, source: [metric.evidence_label, metric.period].filter(Boolean).join(" · "), kind: metric.kind, unit: metric.unit, period: metric.period, evidenceUrl: metric.evidence_url };
 }
 
 function mapCase(item: DatabaseCase): Case {
@@ -41,7 +41,7 @@ export async function getDashboardData() {
   if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], connected: false, loadError: false };
   try {
     const [casesResult, sourcesResult, runsResult] = await Promise.all([
-      supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_label)").order("published_at", { ascending: false }),
+      supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
     ]);

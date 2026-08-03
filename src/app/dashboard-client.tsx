@@ -3,6 +3,7 @@
 import { type FormEvent, useMemo, useState } from "react";
 import type { Case, Medium, Sector } from "@/lib/types";
 import type { SourceOverview } from "@/lib/dashboard-data";
+import CaseEditor from "./case-editor";
 
 const mediumOptions: ("Alle" | Medium)[] = ["Alle", "Audio", "Video"];
 const sectorOptions: ("Alle" | Sector)[] = ["Alle", "Publisher", "Andere Branchen"];
@@ -29,6 +30,7 @@ export default function Dashboard({ initialCases, sourceNames, sources, connecte
   const [saved, setSaved] = useState<string[]>([]);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const [activeCase, setActiveCase] = useState<Case | null>(null);
+  const [editingCase, setEditingCase] = useState<Case | null>(null);
   const [view, setView] = useState<"dashboard" | "review" | "sources">("dashboard");
   const filtered = useMemo(() => initialCases.filter(item =>
     (medium === "Alle" || item.medium === medium) && (sector === "Alle" || item.sector === sector) &&
@@ -54,14 +56,15 @@ export default function Dashboard({ initialCases, sourceNames, sources, connecte
         <section className="case-grid">{approved.length ? approved.map(item => <CaseCard key={item.id} item={item} saved={saved.includes(item.id)} onSave={toggleSaved} onOpen={setActiveCase}/>) : <div className="empty-state"><strong>{connected ? "Noch keine Cases freigegeben." : loadError ? "Die Datenbankverbindung benötigt noch Aufmerksamkeit." : "Supabase ist noch nicht verbunden."}</strong><span>{connected ? "Der erste Import legt neue Fundstellen zunächst in der Review-Queue ab." : loadError ? "Die Details stehen sicher im Vercel Runtime Log." : "Bitte die Umgebungsvariablen in Vercel prüfen."}</span></div>}</section>
         <section className="category-section"><div className="section-heading"><div><p className="eyebrow">SCHNELLZUGRIFF</p><h2>Nach Bereich entdecken</h2></div></div><div className="category-grid">{[["🎙", "Audio bei Publishern", "Podcasts, Briefings & Sprachprodukte", "Audio", "Publisher"], ["▸", "Video bei Publishern", "Social Video, Live & Erklärformate", "Video", "Publisher"], ["◌", "Audio aus anderen Branchen", "Retention, Routine & Personalisierung", "Audio", "Andere Branchen"], ["▣", "Video aus anderen Branchen", "Creator Economy & Markenformate", "Video", "Andere Branchen"]].map(([icon, title, text, m, s]) => <button className="category-card" key={title} onClick={() => { setMedium(m as Medium); setSector(s as Sector); window.scrollTo({ top: 0, behavior: "smooth" }); }}><b>{icon}</b><strong>{title}</strong><span>{text}</span><i>→</i></button>)}</div></section>
       </>}
-      {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds(current => [...current, id]); }} />}
+      {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} onEdit={setEditingCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds(current => [...current, id]); }} />}
       {view === "sources" && <Sources sources={sources} />}
     </section>
     {activeCase && <CaseDetail item={activeCase} saved={saved.includes(activeCase.id)} onClose={() => setActiveCase(null)} onSave={toggleSaved}/>} 
+    {editingCase && <CaseEditor item={editingCase} onClose={() => setEditingCase(null)} onSaved={() => window.location.reload()} />}
   </main>;
 }
 
-function ReviewQueue({ cases, onOpen, reviewedIds, onReview }: { cases: Case[]; onOpen: (item: Case) => void; reviewedIds: string[]; onReview: (id: string, decision: "approved" | "rejected") => Promise<void> }) { const review = cases.filter(c => c.status === "In Prüfung" && !reviewedIds.includes(c.id)); return <div className="admin-page"><p className="eyebrow">REDAKTION</p><h1>Review-Queue</h1><p>Prüfen Sie neue Fundstellen, bevor sie im Dashboard sichtbar werden.</p><div className="review-table">{review.length ? review.map(item => <div key={item.id}><div><Badge tone={item.medium === "Audio" ? "audio" : "video"}>{item.medium}</Badge><h3>{item.title}</h3><span>{item.source} · {item.market} · importiert heute</span></div><div className="review-actions"><button className="outline" onClick={() => onOpen(item)}>Prüfen</button><button className="outline" onClick={() => onReview(item.id, "rejected")}>Ablehnen</button><button className="primary" onClick={() => onReview(item.id, "approved")}>Freigeben</button></div></div>) : <div><span>Keine Cases warten auf Freigabe.</span></div>}</div></div>; }
+function ReviewQueue({ cases, onOpen, onEdit, reviewedIds, onReview }: { cases: Case[]; onOpen: (item: Case) => void; onEdit: (item: Case) => void; reviewedIds: string[]; onReview: (id: string, decision: "approved" | "rejected") => Promise<void> }) { const review = cases.filter(c => c.status === "In Prüfung" && !reviewedIds.includes(c.id)); return <div className="admin-page"><p className="eyebrow">REDAKTION</p><h1>Review-Queue</h1><p>Prüfen Sie neue Fundstellen, bevor sie im Dashboard sichtbar werden.</p><div className="review-table">{review.length ? review.map(item => <div key={item.id}><div><Badge tone={item.medium === "Audio" ? "audio" : "video"}>{item.medium}</Badge><h3>{item.title}</h3><span>{item.source} · {item.market} · importiert heute</span></div><div className="review-actions"><button className="outline" onClick={() => onOpen(item)}>Prüfen</button><button className="outline" onClick={() => onEdit(item)}>Bearbeiten</button><button className="outline" onClick={() => onReview(item.id, "rejected")}>Ablehnen</button><button className="primary" onClick={() => onReview(item.id, "approved")}>Freigeben</button></div></div>) : <div><span>Keine Cases warten auf Freigabe.</span></div>}</div></div>; }
 function Sources({ sources }: { sources: SourceOverview[] }) {
   const [running, setRunning] = useState(false); const [message, setMessage] = useState(""); const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState(""); const [homepageUrl, setHomepageUrl] = useState(""); const [feedUrl, setFeedUrl] = useState(""); const [access, setAccess] = useState<"public" | "member_link_only">("public");
