@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "./supabase";
 
 type Source = { id: string; name: string; feed_url: string | null };
 type FeedItem = { title?: unknown; link?: unknown; guid?: unknown; pubDate?: unknown; published?: unknown; description?: unknown; "content:encoded"?: unknown };
+type SourceRule = { medium?: "audio" | "video"; sector?: "publisher" | "other_industry"; tags?: string[] };
 
 const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: false, trimValues: true });
 const text = (value: unknown) => String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -11,15 +12,23 @@ const audioPattern = /\b(audio|podcast|voice|listen(?:ing)?|sonic|spoken word|h√
 const videoPattern = /\b(video|youtube|tiktok|reel|shorts|livestream|streaming|visual journalism|vertical)\b/i;
 const otherIndustryPattern = /\b(brand|retail|commerce|marketing|agency|fitness|health|travel|bank|automotive|consumer)\b/i;
 
+// Defaults are only set for sources whose editorial focus is unambiguous.
+// They prevent platform cases from being sorted into the publisher area.
+const sourceRules: Record<string, SourceRule> = {
+  "YouTube Official Blog": { medium: "video", sector: "other_industry", tags: ["YouTube", "Videoplattform"] },
+};
+
 function classify(title: string, body: string, sourceName: string) {
   const document = `${title} ${body}`;
-  const medium = videoPattern.test(document) ? "video" : audioPattern.test(document) ? "audio" : null;
+  const rule = sourceRules[sourceName];
+  const medium = videoPattern.test(document) ? "video" : audioPattern.test(document) ? "audio" : rule?.medium ?? null;
   if (!medium) return null;
   return {
     medium,
-    sector: otherIndustryPattern.test(document) && !/nieman|inma|wan-ifra/i.test(sourceName) ? "other_industry" : "publisher",
+    sector: rule?.sector ?? (otherIndustryPattern.test(document) && !/nieman|inma|wan-ifra/i.test(sourceName) ? "other_industry" : "publisher"),
     market: /\b(german|germany|dach|deutsch|schweiz|austria|√∂sterreich)\b/i.test(document) ? "dach" : "international",
     platform: /\b(app|mobile)\b/i.test(document) ? "app" : /\b(web|website|site)\b/i.test(document) ? "web" : "web_and_app",
+    tags: rule?.tags ?? [],
   };
 }
 
@@ -56,7 +65,7 @@ export async function runIngestion() {
         const classification = classify(title, excerpt, source.name);
         if (!title || !url || !classification) return [];
         const parsedDate = new Date(text(item.pubDate || item.published));
-        return [{ source_id: source.id, canonical_url: url, external_id: text(item.guid) || null, title, excerpt, summary: excerpt, ...classification, format: "Artikel", tags: [], published_at: Number.isNaN(parsedDate.valueOf()) ? null : parsedDate.toISOString(), status: "review" }];
+        return [{ source_id: source.id, canonical_url: url, external_id: text(item.guid) || null, title, excerpt, summary: excerpt, ...classification, format: "Artikel", published_at: Number.isNaN(parsedDate.valueOf()) ? null : parsedDate.toISOString(), status: "review" }];
       });
       const { error: insertError } = await supabase.from("cases").upsert(candidates, { onConflict: "canonical_url", ignoreDuplicates: true });
       if (insertError) throw new Error(insertError.message);

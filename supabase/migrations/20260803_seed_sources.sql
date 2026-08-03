@@ -3,6 +3,7 @@
 insert into public.sources (name, homepage_url, feed_url, access) values
   ('Nieman Lab', 'https://www.niemanlab.org/', 'https://www.niemanlab.org/feed/', 'public'),
   ('Digiday', 'https://digiday.com/', 'https://digiday.com/feed/', 'public'),
+  ('YouTube Official Blog', 'https://blog.youtube/', 'https://www.blog.youtube/feed/', 'public'),
   ('INMA', 'https://www.inma.org/', null, 'member_link_only'),
   ('The Audiencers', 'https://theaudiencers.com/', null, 'public'),
   ('WAN-IFRA', 'https://wan-ifra.org/', null, 'public')
