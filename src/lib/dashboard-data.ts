@@ -8,6 +8,13 @@ type DatabaseCase = {
   format: string | null; tags: string[]; published_at: string | null; status: "review" | "published" | "rejected";
   sources: { name: string } | null; performance_metrics: DatabaseMetric[] | null;
 };
+type DatabaseSource = { id: string; name: string; homepage_url: string; feed_url: string | null; access: "public" | "member_link_only"; active: boolean; last_fetched_at: string | null };
+type DatabaseRun = { source_id: string; status: "running" | "completed" | "failed"; started_at: string; error: string | null };
+
+export type SourceOverview = {
+  id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
+  active: boolean; lastFetchedAt: string | null; latestRunStatus: "running" | "completed" | "failed" | null; latestRunError: string | null;
+};
 
 const sourceFallback = ["Alle Quellen", "INMA", "The Audiencers", "WAN-IFRA", "Nieman Lab", "Digiday"];
 const labels: Record<string, string> = { audio: "Audio", video: "Video", publisher: "Publisher", other_industry: "Andere Branchen", dach: "DACH", international: "International", web: "Web", app: "App", web_and_app: "Web & App", review: "In Prüfung", published: "Freigegeben", rejected: "Abgelehnt" };
@@ -31,17 +38,25 @@ function mapCase(item: DatabaseCase): Case {
 
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_label)").order("published_at", { ascending: false }),
-      supabase.from("sources").select("name").eq("active", true).order("name"),
+      supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
+      supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...(sourcesResult.data ?? []).map((source) => source.name)], connected: true, loadError: false };
+    if (runsResult.error) throw new Error(`Supabase ingestion query failed: ${runsResult.error.message}`);
+    const latestRuns = new Map<string, DatabaseRun>();
+    for (const run of (runsResult.data ?? []) as DatabaseRun[]) if (!latestRuns.has(run.source_id)) latestRuns.set(run.source_id, run);
+    const sources = ((sourcesResult.data ?? []) as DatabaseSource[]).map((source) => ({
+      id: source.id, name: source.name, homepageUrl: source.homepage_url, feedUrl: source.feed_url, access: source.access,
+      active: source.active, lastFetchedAt: source.last_fetched_at, latestRunStatus: latestRuns.get(source.id)?.status ?? null, latestRunError: latestRuns.get(source.id)?.error ?? null,
+    }));
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], connected: false, loadError: true };
   }
 }
