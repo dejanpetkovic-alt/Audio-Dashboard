@@ -15,7 +15,7 @@ type DatabaseTrend = { id: string; title: string; summary: string; area: "audio"
 type DatabaseTrendEvidence = { id: string; trend_id: string; source_name: string; title: string; url: string; published_at: string | null };
 type DatabaseTrendAssessment = { trend_id: string; product_feature_id: string; status: "covered" | "gap" | "watch" | "pioneer"; rationale: string };
 type Related<T> = T | T[] | null;
-type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }> };
+type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; evidence_quality: "direct" | "industry_report" | "to_verify"; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }>; trend_signals: Related<{ id: string; title: string }> };
 type DatabasePublisherWatchlistItem = { region: "dach" | "europe" | "north_america"; market: string; priority: number; sources: Related<{ id: string; name: string }> };
 
 export type SourceOverview = {
@@ -66,9 +66,11 @@ function mapTrend(trend: DatabaseTrend, evidence: DatabaseTrendEvidence[], asses
 
 function mapPublisherObservation(item: DatabasePublisherFeatureObservation): PublisherFeatureObservation {
   const labels = { current: "Aktuell dokumentiert", historical: "Historisch", unclear: "Unklar" } as const;
+  const qualityLabels = { direct: "Direkt belegt", industry_report: "Branchenquelle", to_verify: "Zu verifizieren" } as const;
   const source = Array.isArray(item.sources) ? item.sources[0] : item.sources;
   const productFeature = Array.isArray(item.product_features) ? item.product_features[0] : item.product_features;
-  return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", observedFeature: item.observed_feature, platforms: item.platforms ?? [], status: labels[item.status], evidenceUrl: item.evidence_url, evidenceLabel: item.evidence_label, observedAt: item.observed_at, notes: item.notes ?? "", productFeatureId: productFeature?.id ?? null, productFeatureTitle: productFeature?.title ?? null };
+  const trend = Array.isArray(item.trend_signals) ? item.trend_signals[0] : item.trend_signals;
+  return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", observedFeature: item.observed_feature, platforms: item.platforms ?? [], status: labels[item.status], evidenceUrl: item.evidence_url, evidenceLabel: item.evidence_label, evidenceQuality: qualityLabels[item.evidence_quality], originTrendId: trend?.id ?? null, originTrendTitle: trend?.title ?? null, observedAt: item.observed_at, notes: item.notes ?? "", productFeatureId: productFeature?.id ?? null, productFeatureTitle: productFeature?.title ?? null };
 }
 
 function mapPublisherWatchlistItem(item: DatabasePublisherWatchlistItem): PublisherWatchlistItem | null {
@@ -90,7 +92,7 @@ export async function getDashboardData() {
       supabase.from("trend_signals").select("id,title,summary,area,maturity,status,origin,observed_at").order("observed_at", { ascending: false }),
       supabase.from("trend_evidence").select("id,trend_id,source_name,title,url,published_at"),
       supabase.from("trend_feature_assessments").select("trend_id,product_feature_id,status,rationale"),
-      supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,observed_at,notes,sources(name),product_features(id,title)").order("observed_at", { ascending: false }),
+      supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,evidence_quality,observed_at,notes,sources(name),product_features(id,title),trend_signals(id,title)").order("observed_at", { ascending: false }),
       supabase.from("publisher_watchlist").select("region,market,priority,sources(id,name)").order("region").order("priority"),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);

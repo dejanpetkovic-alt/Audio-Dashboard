@@ -38,7 +38,7 @@ export default function Dashboard({ initialCases, sourceNames, sources, features
       {view === "dashboard" && <DashboardHome approved={approved} initialCases={initialCases} sourceNames={sourceNames} connected={connected} loadError={loadError} medium={medium} sector={sector} source={source} setMedium={setMedium} setSector={setSector} setSource={setSource} onOpen={setActiveCase} saved={saved} onSave={toggleSaved} onReview={() => setView("review")} />}
       {view === "offer" && <FeatureInventory features={features} />}
       {view === "trends" && <TrendRadar trends={trends} features={features} />}
-      {view === "publisherFeatures" && <PublisherFeatureMonitor observations={publisherObservations} sources={sources} features={features} watchlist={publisherWatchlist} />}
+      {view === "publisherFeatures" && <PublisherFeatureMonitor observations={publisherObservations} sources={sources} features={features} trends={trends} watchlist={publisherWatchlist} />}
       {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} onEdit={setEditingCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds((current) => [...current, id]); }} />}
       {view === "sources" && <Sources sources={sources} />}
     </section>{activeCase && <CaseDetail item={activeCase} saved={saved.includes(activeCase.id)} onClose={() => setActiveCase(null)} onSave={toggleSaved} />}{editingCase && <CaseEditor item={editingCase} onClose={() => setEditingCase(null)} onSaved={() => window.location.reload()} />}</main>;

@@ -27,6 +27,7 @@ export type TrendSignal = {
 export type PublisherFeatureObservation = {
   id: string; publisher: string; observedFeature: string; platforms: string[];
   status: "Aktuell dokumentiert" | "Historisch" | "Unklar"; evidenceUrl: string; evidenceLabel: string;
+  evidenceQuality: "Direkt belegt" | "Branchenquelle" | "Zu verifizieren"; originTrendId: string | null; originTrendTitle: string | null;
   observedAt: string; notes: string; productFeatureId: string | null; productFeatureTitle: string | null;
 };
 

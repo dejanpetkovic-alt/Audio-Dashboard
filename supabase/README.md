@@ -28,4 +28,6 @@ Run `migrations/20260803_publisher_feature_observations.sql` after the product-f
 
 Run `migrations/20260803_expand_publisher_watchlist.sql` after that migration. It adds the 30-publisher comparison group (DACH, Europe, North America) and the Publisher-Monitor coverage view.
 
+Run `migrations/20260803_add_publisher_evidence_quality.sql` to add evidence quality and the optional Trend-Radar origin to publisher observations.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
