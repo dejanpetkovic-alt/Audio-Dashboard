@@ -11,7 +11,7 @@ type DatabaseCase = {
 type DatabaseSource = { id: string; name: string; homepage_url: string; feed_url: string | null; access: "public" | "member_link_only"; active: boolean; last_fetched_at: string | null };
 type DatabaseRun = { source_id: string; status: "running" | "completed" | "failed"; started_at: string; error: string | null };
 type DatabaseFeature = { id: string; title: string; area: "audio" | "video"; status: "live" | "in_progress" | "planned"; surfaces: string[]; description: string };
-type DatabaseTrend = { id: string; title: string; summary: string; area: "audio" | "video" | "both"; maturity: "early_signal" | "growing" | "standard"; status: "draft" | "published"; observed_at: string };
+type DatabaseTrend = { id: string; title: string; summary: string; area: "audio" | "video" | "both"; maturity: "early_signal" | "growing" | "standard"; status: "draft" | "published"; origin: "manual" | "automation"; observed_at: string };
 type DatabaseTrendEvidence = { id: string; trend_id: string; source_name: string; title: string; url: string; published_at: string | null };
 type DatabaseTrendAssessment = { trend_id: string; product_feature_id: string; status: "covered" | "gap" | "watch" | "pioneer"; rationale: string };
 
@@ -58,7 +58,7 @@ function mapTrend(trend: DatabaseTrend, evidence: DatabaseTrendEvidence[], asses
   const area = trend.area === "both" ? "Audio & Video" : trend.area === "audio" ? "Audio" : "Video";
   const maturity = trend.maturity === "early_signal" ? "Frühes Signal" : trend.maturity === "growing" ? "Im Aufschwung" : "Branchenstandard";
   const state: Record<DatabaseTrendAssessment["status"], "Abgedeckt" | "Lücke" | "Beobachten" | "Pionier"> = { covered: "Abgedeckt", gap: "Lücke", watch: "Beobachten", pioneer: "Pionier" };
-  return { id: trend.id, title: trend.title, summary: trend.summary, area, maturity, status: trend.status === "published" ? "Veröffentlicht" : "Entwurf", observedAt: trend.observed_at, evidence: evidence.filter((item) => item.trend_id === trend.id).map((item) => ({ id: item.id, source: item.source_name, title: item.title, url: item.url, publishedAt: item.published_at })), assessments: assessments.filter((item) => item.trend_id === trend.id).map((item) => ({ featureId: item.product_feature_id, status: state[item.status], rationale: item.rationale })) };
+  return { id: trend.id, title: trend.title, summary: trend.summary, area, maturity, status: trend.status === "published" ? "Veröffentlicht" : "Entwurf", origin: trend.origin === "automation" ? "Automatisch erkannt" : "Manuell", observedAt: trend.observed_at, evidence: evidence.filter((item) => item.trend_id === trend.id).map((item) => ({ id: item.id, source: item.source_name, title: item.title, url: item.url, publishedAt: item.published_at })), assessments: assessments.filter((item) => item.trend_id === trend.id).map((item) => ({ featureId: item.product_feature_id, status: state[item.status], rationale: item.rationale })) };
 }
 
 export async function getDashboardData() {
@@ -70,7 +70,7 @@ export async function getDashboardData() {
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
       supabase.from("product_features").select("id,title,area,status,surfaces,description").order("area").order("created_at"),
-      supabase.from("trend_signals").select("id,title,summary,area,maturity,status,observed_at").order("observed_at", { ascending: false }),
+      supabase.from("trend_signals").select("id,title,summary,area,maturity,status,origin,observed_at").order("observed_at", { ascending: false }),
       supabase.from("trend_evidence").select("id,trend_id,source_name,title,url,published_at"),
       supabase.from("trend_feature_assessments").select("trend_id,product_feature_id,status,rationale"),
     ]);

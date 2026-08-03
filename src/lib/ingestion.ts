@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { getSupabaseAdmin } from "./supabase";
+import { generateTrendDrafts } from "./trend-automation";
 
 type Source = { id: string; name: string; feed_url: string | null };
 type FeedItem = { title?: unknown; link?: unknown; guid?: unknown; pubDate?: unknown; published?: unknown; description?: unknown; "content:encoded"?: unknown };
@@ -81,5 +82,6 @@ export async function runIngestion() {
       results.push({ source: source.name, imported: 0, error: message });
     }
   }
+  try { await generateTrendDrafts(); } catch (cause) { console.error("Trend automation failed:", cause); }
   return results;
 }

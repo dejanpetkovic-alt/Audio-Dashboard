@@ -21,5 +21,5 @@ export type TrendEvidence = { id: string; source: string; title: string; url: st
 export type TrendSignal = {
   id: string; title: string; summary: string; area: "Audio" | "Video" | "Audio & Video";
   maturity: "Frühes Signal" | "Im Aufschwung" | "Branchenstandard"; status: "Entwurf" | "Veröffentlicht";
-  observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[];
+  origin: "Manuell" | "Automatisch erkannt"; observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[];
 };

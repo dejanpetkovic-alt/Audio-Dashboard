@@ -1,0 +1,49 @@
+import { getSupabaseAdmin } from "./supabase";
+
+type ImportedCase = { title: string; excerpt: string | null; canonical_url: string; published_at: string | null; sources: { name: string } | null };
+type TrendRule = { title: string; summary: string; area: "audio" | "video" | "both"; maturity: "early_signal" | "growing" | "standard"; patterns: RegExp[] };
+
+// These intentionally narrow rules create editorial drafts, not published claims.
+// A semantic/AI layer can be added later when an API key is available.
+const rules: TrendRule[] = [
+  { title: "KI-generierte Audio-Briefings und News-Podcasts", summary: "Automatisch erkannte Fundstellen weisen auf KI-gestützte Audio-Briefings, automatisierte News-Podcasts oder vergleichbare Formate hin. Redaktionell prüfen, ob daraus ein belastbarer Branchentrend entsteht.", area: "audio", maturity: "early_signal", patterns: [/\b(ai|artificial intelligence|generative ai|ki[- ]generiert|automation)\b/i, /\b(audio|podcast|briefing|news report|daily report|voice)\b/i] },
+  { title: "Artikelvertonung und Text-to-Speech", summary: "Fundstellen zu vertonten Artikeln, Text-to-Speech oder narrativen Lesemodi werden als potenzieller Audio-Produkttrend gebündelt.", area: "audio", maturity: "growing", patterns: [/\b(text[- ]to[- ]speech|tts|article narration|article audio|listen to this article|vertont)\b/i] },
+  { title: "Vertikale Videoformate und Kurzvideo-Feeds", summary: "Fundstellen zu Reels, Shorts, TikTok, vertikalem Video oder Kurzvideo-Feeds werden als potenzielle Entwicklung im Video-Produkt gebündelt.", area: "video", maturity: "growing", patterns: [/\b(reels?|shorts?|tiktok|vertical video|vertical feed|short[- ]form video)\b/i] },
+  { title: "Video-Podcasts und Bewegtbild im Audio-Angebot", summary: "Fundstellen zu Video-Podcasts oder der Verbindung von Audio- und Videoformaten werden für die redaktionelle Trendprüfung zusammengeführt.", area: "both", maturity: "early_signal", patterns: [/\b(video podcast|podcast video|video podcasts)\b/i] },
+  { title: "Personalisierte Audio- und Video-Erlebnisse", summary: "Fundstellen zu personalisierten Empfehlungen, individuellen Briefings oder personalisierten Medienformaten werden als potenzielle Produktentwicklung gebündelt.", area: "both", maturity: "early_signal", patterns: [/\b(personali[sz](ed|ation|ierte?)|personalised|customi[sz](ed|ation)|tailored)\b/i, /\b(audio|podcast|video|briefing|feed)\b/i] },
+];
+
+function matches(rule: TrendRule, item: ImportedCase) { const text = `${item.title} ${item.excerpt ?? ""}`; return rule.patterns.every((pattern) => pattern.test(text)); }
+
+export async function generateTrendDrafts() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: cases, error: casesError } = await supabase.from("cases").select("title,excerpt,canonical_url,published_at,sources(name)").in("status", ["review", "published"]).gte("discovered_at", since).order("discovered_at", { ascending: false }).limit(250);
+  if (casesError) throw new Error(casesError.message);
+  const { data: trends, error: trendsError } = await supabase.from("trend_signals").select("id,title");
+  if (trendsError) throw new Error(trendsError.message);
+  const { data: evidence, error: evidenceError } = await supabase.from("trend_evidence").select("trend_id,url");
+  if (evidenceError) throw new Error(evidenceError.message);
+  const existing = new Map((trends ?? []).map((trend) => [trend.title, trend.id]));
+  const knownEvidence = new Set((evidence ?? []).map((item) => `${item.trend_id}:${item.url}`));
+  const result: Array<{ title: string; evidenceAdded: number }> = [];
+  for (const rule of rules) {
+    const hits = ((cases ?? []) as ImportedCase[]).filter((item) => matches(rule, item));
+    if (!hits.length) continue;
+    let trendId = existing.get(rule.title);
+    if (!trendId) {
+      const { data, error } = await supabase.from("trend_signals").insert({ title: rule.title, summary: rule.summary, area: rule.area, maturity: rule.maturity, status: "draft", origin: "automation" }).select("id").single();
+      if (error) throw new Error(error.message);
+      trendId = data.id; existing.set(rule.title, trendId);
+    }
+    const newEvidence = hits.filter((item) => !knownEvidence.has(`${trendId}:${item.canonical_url}`)).map((item) => ({ trend_id: trendId, source_name: item.sources?.name ?? "Unbekannte Quelle", title: item.title, url: item.canonical_url, published_at: item.published_at }));
+    if (newEvidence.length) {
+      const { error } = await supabase.from("trend_evidence").insert(newEvidence);
+      if (error) throw new Error(error.message);
+      newEvidence.forEach((item) => knownEvidence.add(`${trendId}:${item.url}`));
+    }
+    result.push({ title: rule.title, evidenceAdded: newEvidence.length });
+  }
+  return result;
+}
