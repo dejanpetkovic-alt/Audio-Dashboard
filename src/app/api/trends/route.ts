@@ -12,6 +12,6 @@ export async function POST(request: NextRequest) {
   const area = body.area === "Video" ? "video" : body.area === "Audio & Video" ? "both" : "audio";
   const maturity = body.maturity === "Branchenstandard" ? "standard" : body.maturity === "Im Aufschwung" ? "growing" : "early_signal";
   if (!title || !summary || !areas.has(area) || !maturities.has(maturity)) return NextResponse.json({ error: "Bitte Titel, Einordnung, Bereich und Reifegrad angeben." }, { status: 400 });
-  const { data, error } = await supabase.from("trend_signals").insert({ title, summary, area, maturity, status: "draft" }).select("id").single();
+  const { data, error } = await supabase.from("trend_signals").insert({ title, summary, area, maturity, status: "published", origin: "manual" }).select("id").single();
   return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ data }, { status: 201 });
 }

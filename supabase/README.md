@@ -16,6 +16,8 @@ Run `migrations/20260803_product_features.sql` to add the internal audio/video p
 
 Run `migrations/20260803_trend_radar.sql` after the product-feature migration to add the editorial Trend-Radar, including evidence links and the feature comparison model.
 
-Run `migrations/20260803_trend_automation.sql` to enable the automated rule-based trend drafts created after every successful source import.
+Run `migrations/20260803_trend_automation.sql` to enable the automated rule-based trend signals created after every successful source import.
+
+Run `migrations/20260803_trend_radar_direct_output.sql` to show automated trend signals directly, without a separate trend approval step.
 
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
