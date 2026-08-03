@@ -31,12 +31,17 @@ function mapCase(item: DatabaseCase): Case {
 
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, connected: false };
-  const [casesResult, sourcesResult] = await Promise.all([
-    supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_label)").order("published_at", { ascending: false }),
-    supabase.from("sources").select("name").eq("active", true).order("name"),
-  ]);
-  if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
-  if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
-  return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...(sourcesResult.data ?? []).map((source) => source.name)], connected: true };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, connected: false, loadError: false };
+  try {
+    const [casesResult, sourcesResult] = await Promise.all([
+      supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_label)").order("published_at", { ascending: false }),
+      supabase.from("sources").select("name").eq("active", true).order("name"),
+    ]);
+    if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
+    if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...(sourcesResult.data ?? []).map((source) => source.name)], connected: true, loadError: false };
+  } catch (error) {
+    console.error("Media Pulse database load failed:", error);
+    return { cases: [] as Case[], sourceNames: sourceFallback, connected: false, loadError: true };
+  }
 }
