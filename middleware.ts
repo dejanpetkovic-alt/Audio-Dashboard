@@ -19,7 +19,7 @@ async function hasValidSession(token: string | undefined) {
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/login") || path.startsWith("/api/auth") || path.startsWith("/api/health")) return NextResponse.next();
+  if (path.startsWith("/login") || path.startsWith("/api/auth") || path.startsWith("/api/health") || path.startsWith("/api/cron")) return NextResponse.next();
   if (await hasValidSession(request.cookies.get(COOKIE_NAME)?.value)) return NextResponse.next();
   const login = new URL("/login", request.url); login.searchParams.set("next", path);
   return NextResponse.redirect(login);

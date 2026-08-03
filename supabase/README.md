@@ -5,3 +5,5 @@
 3. Run the query once. It creates the Media Pulse tables, indices, update triggers, and enables Row Level Security.
 
 The application will access these tables server-side using the Supabase service key; no browser-level RLS policies are added at this stage.
+
+Then run `migrations/20260803_seed_sources.sql` in the SQL Editor to add the initial source registry.
