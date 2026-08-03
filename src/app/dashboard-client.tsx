@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import type { Case, Medium, ProductFeature, PublisherFeatureObservation, Sector, TrendSignal } from "@/lib/types";
+import type { Case, Medium, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, Sector, TrendSignal } from "@/lib/types";
 import type { SourceOverview } from "@/lib/dashboard-data";
 import CaseEditor from "./case-editor";
 import FeatureInventory from "./feature-inventory";
@@ -19,7 +19,7 @@ function CaseCard({ item, saved, onSave, onOpen }: { item: Case; saved: boolean;
   return <article className="case-card"><div className="card-topline"><span className="source">{item.source}</span><span className="date">{new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "short" }).format(new Date(item.publishedAt))}</span></div><div className="badges"><Badge tone={item.medium === "Audio" ? "audio" : "video"}>{item.medium}</Badge><Badge>{item.sector}</Badge>{item.isNew && <Badge tone="new">Neu</Badge>}</div><h3>{item.title}</h3><p>{item.summary}</p><div className="tag-row">{item.tags.slice(0, 2).map((tag) => <span key={tag}>#{tag}</span>)}</div><div className="card-actions"><button className="text-button" onClick={() => onOpen(item)}>Case ansehen <span>→</span></button><button className={`save-button ${saved ? "saved" : ""}`} aria-label="Case speichern" onClick={() => onSave(item.id)}>{saved ? "★ Gespeichert" : "☆ Merken"}</button></div></article>;
 }
 
-export default function Dashboard({ initialCases, sourceNames, sources, features, trends, publisherObservations, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; trends: TrendSignal[]; publisherObservations: PublisherFeatureObservation[]; connected: boolean; loadError: boolean }) {
+export default function Dashboard({ initialCases, sourceNames, sources, features, trends, publisherObservations, publisherWatchlist, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; trends: TrendSignal[]; publisherObservations: PublisherFeatureObservation[]; publisherWatchlist: PublisherWatchlistItem[]; connected: boolean; loadError: boolean }) {
   const [medium, setMedium] = useState<"Alle" | Medium>("Alle");
   const [sector, setSector] = useState<"Alle" | Sector>("Alle");
   const [source, setSource] = useState("Alle Quellen");
@@ -38,7 +38,7 @@ export default function Dashboard({ initialCases, sourceNames, sources, features
       {view === "dashboard" && <DashboardHome approved={approved} initialCases={initialCases} sourceNames={sourceNames} connected={connected} loadError={loadError} medium={medium} sector={sector} source={source} setMedium={setMedium} setSector={setSector} setSource={setSource} onOpen={setActiveCase} saved={saved} onSave={toggleSaved} onReview={() => setView("review")} />}
       {view === "offer" && <FeatureInventory features={features} />}
       {view === "trends" && <TrendRadar trends={trends} features={features} />}
-      {view === "publisherFeatures" && <PublisherFeatureMonitor observations={publisherObservations} sources={sources} features={features} />}
+      {view === "publisherFeatures" && <PublisherFeatureMonitor observations={publisherObservations} sources={sources} features={features} watchlist={publisherWatchlist} />}
       {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} onEdit={setEditingCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds((current) => [...current, id]); }} />}
       {view === "sources" && <Sources sources={sources} />}
     </section>{activeCase && <CaseDetail item={activeCase} saved={saved.includes(activeCase.id)} onClose={() => setActiveCase(null)} onSave={toggleSaved} />}{editingCase && <CaseEditor item={editingCase} onClose={() => setEditingCase(null)} onSaved={() => window.location.reload()} />}</main>;

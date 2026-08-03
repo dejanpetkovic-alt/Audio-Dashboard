@@ -29,3 +29,8 @@ export type PublisherFeatureObservation = {
   status: "Aktuell dokumentiert" | "Historisch" | "Unklar"; evidenceUrl: string; evidenceLabel: string;
   observedAt: string; notes: string; productFeatureId: string | null; productFeatureTitle: string | null;
 };
+
+export type PublisherWatchlistItem = {
+  sourceId: string; publisher: string; region: "DACH" | "Europa" | "Nordamerika";
+  market: string; priority: number;
+};

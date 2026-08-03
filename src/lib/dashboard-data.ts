@@ -1,4 +1,4 @@
-import type { Case, Metric, ProductFeature, PublisherFeatureObservation, TrendSignal } from "./types";
+import type { Case, Metric, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, TrendSignal } from "./types";
 import { getSupabaseAdmin } from "./supabase";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
@@ -16,6 +16,7 @@ type DatabaseTrendEvidence = { id: string; trend_id: string; source_name: string
 type DatabaseTrendAssessment = { trend_id: string; product_feature_id: string; status: "covered" | "gap" | "watch" | "pioneer"; rationale: string };
 type Related<T> = T | T[] | null;
 type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }> };
+type DatabasePublisherWatchlistItem = { region: "dach" | "europe" | "north_america"; market: string; priority: number; sources: Related<{ id: string; name: string }> };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -70,11 +71,18 @@ function mapPublisherObservation(item: DatabasePublisherFeatureObservation): Pub
   return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", observedFeature: item.observed_feature, platforms: item.platforms ?? [], status: labels[item.status], evidenceUrl: item.evidence_url, evidenceLabel: item.evidence_label, observedAt: item.observed_at, notes: item.notes ?? "", productFeatureId: productFeature?.id ?? null, productFeatureTitle: productFeature?.title ?? null };
 }
 
+function mapPublisherWatchlistItem(item: DatabasePublisherWatchlistItem): PublisherWatchlistItem | null {
+  const source = Array.isArray(item.sources) ? item.sources[0] : item.sources;
+  if (!source) return null;
+  const regions = { dach: "DACH", europe: "Europa", north_america: "Nordamerika" } as const;
+  return { sourceId: source.id, publisher: source.name, region: regions[item.region], market: item.market, priority: item.priority };
+}
+
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
@@ -83,6 +91,7 @@ export async function getDashboardData() {
       supabase.from("trend_evidence").select("id,trend_id,source_name,title,url,published_at"),
       supabase.from("trend_feature_assessments").select("trend_id,product_feature_id,status,rationale"),
       supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,observed_at,notes,sources(name),product_features(id,title)").order("observed_at", { ascending: false }),
+      supabase.from("publisher_watchlist").select("region,market,priority,sources(id,name)").order("region").order("priority"),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -96,9 +105,10 @@ export async function getDashboardData() {
     const features = featuresResult.error ? featureFallback : ((featuresResult.data ?? []) as DatabaseFeature[]).map(mapFeature);
     const trends = trendsResult.error ? [] : ((trendsResult.data ?? []) as DatabaseTrend[]).map((item) => mapTrend(item, evidenceResult.error ? [] : (evidenceResult.data ?? []) as DatabaseTrendEvidence[], assessmentsResult.error ? [] : (assessmentsResult.data ?? []) as DatabaseTrendAssessment[]));
     const publisherObservations = publisherObservationsResult.error ? [] : ((publisherObservationsResult.data ?? []) as DatabasePublisherFeatureObservation[]).map(mapPublisherObservation);
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, connected: true, loadError: false };
+    const publisherWatchlist = publisherWatchlistResult.error ? [] : ((publisherWatchlistResult.data ?? []) as DatabasePublisherWatchlistItem[]).map(mapPublisherWatchlistItem).filter((item): item is PublisherWatchlistItem => item !== null);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], connected: false, loadError: true };
   }
 }
