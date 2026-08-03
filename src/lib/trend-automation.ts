@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 
-type ImportedCase = { title: string; excerpt: string | null; canonical_url: string; published_at: string | null; sources: { name: string } | null };
+type ImportedCase = { title: string; excerpt: string | null; canonical_url: string; published_at: string | null; sources: { name: string }[] | null };
 type TrendRule = { title: string; summary: string; area: "audio" | "video" | "both"; maturity: "early_signal" | "growing" | "standard"; patterns: RegExp[]; featureTitles: string[] };
 
 // These intentionally narrow rules create editorial drafts, not published claims.
@@ -39,7 +39,7 @@ export async function generateTrendDrafts() {
       if (error) throw new Error(error.message);
       trendId = data.id; existing.set(rule.title, trendId);
     }
-    const newEvidence = hits.filter((item) => !knownEvidence.has(`${trendId}:${item.canonical_url}`)).map((item) => ({ trend_id: trendId, source_name: item.sources?.name ?? "Unbekannte Quelle", title: item.title, url: item.canonical_url, published_at: item.published_at }));
+    const newEvidence = hits.filter((item) => !knownEvidence.has(`${trendId}:${item.canonical_url}`)).map((item) => ({ trend_id: trendId, source_name: item.sources?.[0]?.name ?? "Unbekannte Quelle", title: item.title, url: item.canonical_url, published_at: item.published_at }));
     if (newEvidence.length) {
       const { error } = await supabase.from("trend_evidence").insert(newEvidence);
       if (error) throw new Error(error.message);
