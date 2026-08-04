@@ -1,14 +1,14 @@
 export type ReferenceInspection = { status: "scanned" | "unavailable"; detectedTech: string[]; notes: string };
 
 const signatures: Array<[RegExp, string]> = [
-  [/<video\\b|videojs|video-js/i, "HTML5/Video.js-Video"],
-  [/<audio\\b|audiojs/i, "HTML5-Audio"],
-  [/(youtube\\.com|youtu\\.be|youtube-nocookie)/i, "YouTube-Einbettung"],
-  [/(spotify\\.com\\/embed|open\\.spotify)/i, "Spotify-Einbettung"],
+  [/<video\b|videojs|video-js/i, "HTML5/Video.js-Video"],
+  [/<audio\b|audiojs/i, "HTML5-Audio"],
+  [/(youtube\.com|youtu\.be|youtube-nocookie)/i, "YouTube-Einbettung"],
+  [/(spotify\.com\/embed|open\.spotify)/i, "Spotify-Einbettung"],
   [/(jwplayer|jw-player)/i, "JW Player"],
   [/(brightcove)/i, "Brightcove"],
   [/(theoplayer)/i, "THEOplayer"],
-  [/(mux\\.com|mux-player)/i, "Mux"],
+  [/(mux\.com|mux-player)/i, "Mux"],
   [/(transcript|untertitel|captions|subtitles)/i, "Transkript/Untertitel-Signal"],
   [/(text-to-speech|tts|listen to this article|vorlesefunktion)/i, "Text-to-Speech-Signal"],
 ];
