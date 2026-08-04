@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { getSupabaseAdmin } from "./supabase";
 import { generateTrendDrafts } from "./trend-automation";
 import { inferCaseIntelligence } from "./case-intelligence";
+import { runPublisherFeatureDiscovery } from "./feature-discovery";
 
 type Source = { id: string; name: string; feed_url: string | null };
 type FeedItem = { title?: unknown; link?: unknown; guid?: unknown; pubDate?: unknown; published?: unknown; description?: unknown; "content:encoded"?: unknown };
@@ -87,5 +88,6 @@ export async function runIngestion() {
     }
   }
   try { await generateTrendDrafts(); } catch (cause) { console.error("Trend automation failed:", cause); }
+  try { await runPublisherFeatureDiscovery(); } catch (cause) { console.error("Publisher feature discovery failed:", cause); }
   return results;
 }

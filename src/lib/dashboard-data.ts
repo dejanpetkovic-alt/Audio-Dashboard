@@ -1,5 +1,6 @@
 import type { Case, FeatureLabItem, Metric, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, TrendSignal } from "./types";
 import { getSupabaseAdmin } from "./supabase";
+import type { FeatureDiscoveryGroup, PublisherScanTargetOverview } from "./discovery-types";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
 type DatabaseCase = {
@@ -20,6 +21,8 @@ type Related<T> = T | T[] | null;
 type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; evidence_quality: "direct" | "industry_report" | "to_verify"; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }>; trend_signals: Related<{ id: string; title: string }> };
 type DatabasePublisherWatchlistItem = { region: "dach" | "europe" | "north_america"; market: string; priority: number; sources: Related<{ id: string; name: string }> };
 type DatabaseFeatureLabItem = { id: string; product_name: string; feature_description: string; reference_url: string; screenshot_url: string | null; copyability: "high" | "medium" | "low"; implementation_effort: "low" | "medium" | "high"; visibility: "clear" | "partial" | "unclear"; product_value: "high" | "medium" | "low"; build_priority: "now" | "watch" | "later"; status: "research" | "evaluate" | "build" | "done"; rationale: string; technical_notes: string; assignee: string; detected_tech: string[]; inspection_status: "pending" | "scanned" | "unavailable"; implementation_brief: string; created_at: string; sources: Related<{ name: string }>; trend_signals: Related<{ title: string }>; publisher_feature_observations: Related<{ observed_feature: string }> };
+type DatabaseDiscoveryGroup = { id: string; feature_key: string; title: string; medium: "audio" | "video" | "both"; description: string; prototype_brief: string; publisher_feature_findings: Array<{ id: string; publisher_source_id: string; evidence_url: string; evidence_label: string; page_excerpt: string; platforms: string[]; region: "dach" | "europe" | "north_america"; evidence_quality: "direct" | "to_verify"; technical_signals: string[]; screenshot_url: string | null; first_seen_at: string; last_seen_at: string; sources: Related<{ name: string }> }> | null };
+type DatabaseScanTarget = { id: string; publisher_source_id: string; url: string; target_type: "website" | "audio_hub" | "video_hub" | "help" | "app_store"; active: boolean; sources: Related<{ name: string }> };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -92,11 +95,19 @@ function mapFeatureLabItem(item: DatabaseFeatureLabItem): FeatureLabItem {
   return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", productName: item.product_name, featureDescription: item.feature_description, referenceUrl: item.reference_url, screenshotUrl: item.screenshot_url, copyability: level[item.copyability], implementationEffort: level[item.implementation_effort], visibility: visibility[item.visibility], productValue: level[item.product_value], buildPriority: priority[item.build_priority], status: status[item.status], rationale: item.rationale, technicalNotes: item.technical_notes, trendTitle: trend?.title ?? null, observationTitle: observation?.observed_feature ?? null, assignee: item.assignee ?? "", detectedTech: item.detected_tech ?? [], inspectionStatus: inspection[item.inspection_status ?? "pending"], implementationBrief: item.implementation_brief ?? "", createdAt: item.created_at };
 }
 
+function mapDiscoveryGroup(item: DatabaseDiscoveryGroup): FeatureDiscoveryGroup {
+  const findings = (item.publisher_feature_findings ?? []).map((finding) => { const source = Array.isArray(finding.sources) ? finding.sources[0] : finding.sources; return { id: finding.id, publisher: source?.name ?? "Unbekannter Publisher", publisherId: finding.publisher_source_id, url: finding.evidence_url, label: finding.evidence_label, excerpt: finding.page_excerpt, platforms: finding.platforms ?? [], region: ({ dach: "DACH", europe: "Europa", north_america: "Nordamerika" } as const)[finding.region], evidenceQuality: finding.evidence_quality === "direct" ? "Direkt belegt" : "Zu verifizieren", technicalSignals: finding.technical_signals ?? [], screenshotUrl: finding.screenshot_url, firstSeenAt: finding.first_seen_at, lastSeenAt: finding.last_seen_at }; });
+  const dates = findings.map((finding) => finding.firstSeenAt).sort(); const latest = findings.map((finding) => finding.lastSeenAt).sort().at(-1) ?? new Date().toISOString();
+  return { id: item.id, key: item.feature_key, title: item.title, medium: item.medium === "both" ? "Audio & Video" : item.medium === "audio" ? "Audio" : "Video", description: item.description, prototypeBrief: item.prototype_brief, findings, firstSeenAt: dates[0] ?? latest, lastSeenAt: latest };
+}
+
+function mapScanTarget(item: DatabaseScanTarget): PublisherScanTargetOverview { const source = Array.isArray(item.sources) ? item.sources[0] : item.sources; const types = { website: "Website", audio_hub: "Audio-Hub", video_hub: "Video-Hub", help: "Hilfe", app_store: "App-Store" } as const; return { id: item.id, publisherSourceId: item.publisher_source_id, publisher: source?.name ?? "Unbekannter Publisher", url: item.url, targetType: types[item.target_type], active: item.active }; }
+
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult, featureLabResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult, featureLabResult, discoveryResult, scanTargetsResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
@@ -107,6 +118,8 @@ export async function getDashboardData() {
       supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,evidence_quality,observed_at,notes,sources(name),product_features(id,title),trend_signals(id,title)").order("observed_at", { ascending: false }),
       supabase.from("publisher_watchlist").select("region,market,priority,sources(id,name)").order("region").order("priority"),
       supabase.from("feature_lab_items").select("id,product_name,feature_description,reference_url,screenshot_url,copyability,implementation_effort,visibility,product_value,build_priority,status,rationale,technical_notes,assignee,detected_tech,inspection_status,implementation_brief,created_at,sources(name),trend_signals(title),publisher_feature_observations(observed_feature)").order("created_at", { ascending: false }),
+      supabase.from("publisher_feature_groups").select("id,feature_key,title,medium,description,prototype_brief,publisher_feature_findings(id,publisher_source_id,evidence_url,evidence_label,page_excerpt,platforms,region,evidence_quality,technical_signals,screenshot_url,first_seen_at,last_seen_at,sources(name))").order("updated_at", { ascending: false }),
+      supabase.from("publisher_scan_targets").select("id,publisher_source_id,url,target_type,active,sources(name)").order("created_at"),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -122,9 +135,11 @@ export async function getDashboardData() {
     const publisherObservations = publisherObservationsResult.error ? [] : ((publisherObservationsResult.data ?? []) as DatabasePublisherFeatureObservation[]).map(mapPublisherObservation);
     const publisherWatchlist = publisherWatchlistResult.error ? [] : ((publisherWatchlistResult.data ?? []) as DatabasePublisherWatchlistItem[]).map(mapPublisherWatchlistItem).filter((item): item is PublisherWatchlistItem => item !== null);
     const featureLabItems = featureLabResult.error ? [] : ((featureLabResult.data ?? []) as DatabaseFeatureLabItem[]).map(mapFeatureLabItem);
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, connected: true, loadError: false };
+    const discoveryGroups = discoveryResult.error ? [] : ((discoveryResult.data ?? []) as DatabaseDiscoveryGroup[]).map(mapDiscoveryGroup);
+    const scanTargets = scanTargetsResult.error ? [] : ((scanTargetsResult.data ?? []) as DatabaseScanTarget[]).map(mapScanTarget);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, discoveryGroups, scanTargets, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], connected: false, loadError: true };
   }
 }
