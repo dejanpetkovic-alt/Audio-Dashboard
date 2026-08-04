@@ -35,7 +35,7 @@ function DashboardHome({ sources, featureLabItems, ...props }: React.ComponentPr
 
 export default function Dashboard({ initialCases, sourceNames, sources, features, trends, publisherObservations, publisherWatchlist, featureLabItems, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; trends: TrendSignal[]; publisherObservations: PublisherFeatureObservation[]; publisherWatchlist: PublisherWatchlistItem[]; featureLabItems: FeatureLabItem[]; connected: boolean; loadError: boolean }) {
   const [medium, setMedium] = useState<"Alle" | Medium>("Alle");
-  const [sector, setSector] = useState<"Alle" | Sector>("Alle");
+  const [sector, setSector] = useState<"Alle" | Sector>("Publisher");
   const [source, setSource] = useState("Alle Quellen");
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<string[]>([]);

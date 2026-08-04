@@ -13,32 +13,20 @@ export type Case = {
   region?: "DACH" | "Europa" | "Nordamerika" | "Global"; categories?: string[]; subcategory?: string; affectedPlatforms?: string[]; publisherRelated?: boolean; whyRelevant?: string; observationStatus?: "Lesen" | "Beobachten" | "Testen" | "Weitergeben"; examplesMentioned?: boolean; aiRelevance?: "Niedrig" | "Mittel" | "Hoch"; audioRelevance?: "Niedrig" | "Mittel" | "Hoch"; videoRelevance?: "Niedrig" | "Mittel" | "Hoch";
 };
 
-export type ProductFeature = {
-  id: string; title: string; area: "Audio" | "Video"; status: "Live" | "In Arbeit" | "Geplant";
-  surfaces: string[]; description: string;
-};
-
+export type ProductFeature = { id: string; title: string; area: "Audio" | "Video"; status: "Live" | "In Arbeit" | "Geplant"; surfaces: string[]; description: string };
 export type TrendAssessment = { featureId: string; status: "Abgedeckt" | "Lücke" | "Beobachten" | "Pionier"; rationale: string };
 export type TrendEvidence = { id: string; source: string; title: string; url: string; publishedAt: string | null };
-export type TrendSignal = {
-  id: string; title: string; summary: string; area: "Audio" | "Video" | "Audio & Video";
-  maturity: "Frühes Signal" | "Im Aufschwung" | "Branchenstandard"; status: "Entwurf" | "Veröffentlicht";
-  origin: "Manuell" | "Automatisch erkannt"; observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[];
-};
+export type TrendSignal = { id: string; title: string; summary: string; area: "Audio" | "Video" | "Audio & Video"; maturity: "Frühes Signal" | "Im Aufschwung" | "Branchenstandard"; status: "Entwurf" | "Veröffentlicht"; origin: "Manuell" | "Automatisch erkannt"; observedAt: string; evidence: TrendEvidence[]; assessments: TrendAssessment[] };
 
 export type PublisherFeatureObservation = {
-  id: string; publisher: string; observedFeature: string; platforms: string[];
-  status: "Aktuell dokumentiert" | "Historisch" | "Unklar"; evidenceUrl: string; evidenceLabel: string;
+  id: string; publisher: string; observedFeature: string; platforms: string[]; status: "Aktuell dokumentiert" | "Historisch" | "Unklar"; evidenceUrl: string; evidenceLabel: string;
   evidenceQuality: "Direkt belegt" | "Branchenquelle" | "Zu verifizieren"; originTrendId: string | null; originTrendTitle: string | null;
   observedAt: string; notes: string; productFeatureId: string | null; productFeatureTitle: string | null;
 };
-
-export type PublisherWatchlistItem = {
-  sourceId: string; publisher: string; region: "DACH" | "Europa" | "Nordamerika";
-  market: string; priority: number;
-};
+export type PublisherWatchlistItem = { sourceId: string; publisher: string; region: "DACH" | "Europa" | "Nordamerika"; market: string; priority: number };
 
 export type FeatureLabItem = {
   id: string; publisher: string; productName: string; featureDescription: string; referenceUrl: string; screenshotUrl: string | null;
   copyability: "Hoch" | "Mittel" | "Niedrig"; implementationEffort: "Niedrig" | "Mittel" | "Hoch"; visibility: "Klar sichtbar" | "Teilweise sichtbar" | "Unklar"; productValue: "Hoch" | "Mittel" | "Niedrig"; buildPriority: "Jetzt" | "Beobachten" | "Später"; status: "Recherche" | "Bewerten" | "Nachbauen" | "Erledigt"; rationale: string; technicalNotes: string; trendTitle: string | null; observationTitle: string | null;
+  assignee: string; detectedTech: string[]; inspectionStatus: "Ausstehend" | "Geprüft" | "Nicht verfügbar"; implementationBrief: string; createdAt: string;
 };
