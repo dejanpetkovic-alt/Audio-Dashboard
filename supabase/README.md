@@ -36,4 +36,6 @@ Run `migrations/20260804_add_case_standard.sql` to add the complete structured s
 
 Run `migrations/20260804_add_feature_lab.sql` to add the Feature-Lab / Nachbau-Backlog.
 
+Run `migrations/20260804_automate_feature_lab.sql` after it. It seeds existing publisher observations into the backlog and automatically adds all future observations.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
