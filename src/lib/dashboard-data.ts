@@ -139,7 +139,7 @@ export async function getDashboardData() {
     const featureLabItems = featureLabResult.error ? [] : ((featureLabResult.data ?? []) as DatabaseFeatureLabItem[]).map(mapFeatureLabItem);
     const discoveryGroups = discoveryResult.error ? [] : ((discoveryResult.data ?? []) as DatabaseDiscoveryGroup[]).map(mapDiscoveryGroup);
     const scanTargets = scanTargetsResult.error ? [] : ((scanTargetsResult.data ?? []) as DatabaseScanTarget[]).map(mapScanTarget);
-    const weeklyFeatureReviews = weeklyReviewsResult.error ? [] : ((weeklyReviewsResult.data ?? []) as DatabaseWeeklyFeatureReview[]).map((item) => ({ groupId: item.feature_group_id, weekStart: item.week_start, status: item.status === "selected" ? "Ausgewählt" : "Ausgeblendet" }));
+    const weeklyFeatureReviews: WeeklyFeatureReview[] = weeklyReviewsResult.error ? [] : ((weeklyReviewsResult.data ?? []) as DatabaseWeeklyFeatureReview[]).map((item) => ({ groupId: item.feature_group_id, weekStart: item.week_start, status: (item.status === "selected" ? "Ausgewählt" : "Ausgeblendet") as WeeklyFeatureReview["status"] }));
     return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, discoveryGroups, scanTargets, weeklyFeatureReviews, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
