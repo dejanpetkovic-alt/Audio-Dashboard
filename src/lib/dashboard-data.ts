@@ -1,4 +1,4 @@
-import type { Case, Metric, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, TrendSignal } from "./types";
+import type { Case, FeatureLabItem, Metric, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, TrendSignal } from "./types";
 import { getSupabaseAdmin } from "./supabase";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
@@ -19,6 +19,7 @@ type DatabaseTrendAssessment = { trend_id: string; product_feature_id: string; s
 type Related<T> = T | T[] | null;
 type DatabasePublisherFeatureObservation = { id: string; observed_feature: string; platforms: string[]; status: "current" | "historical" | "unclear"; evidence_url: string; evidence_label: string; evidence_quality: "direct" | "industry_report" | "to_verify"; observed_at: string; notes: string; sources: Related<{ name: string }>; product_features: Related<{ id: string; title: string }>; trend_signals: Related<{ id: string; title: string }> };
 type DatabasePublisherWatchlistItem = { region: "dach" | "europe" | "north_america"; market: string; priority: number; sources: Related<{ id: string; name: string }> };
+type DatabaseFeatureLabItem = { id: string; product_name: string; feature_description: string; reference_url: string; screenshot_url: string | null; copyability: "high" | "medium" | "low"; implementation_effort: "low" | "medium" | "high"; visibility: "clear" | "partial" | "unclear"; product_value: "high" | "medium" | "low"; build_priority: "now" | "watch" | "later"; status: "research" | "evaluate" | "build" | "done"; rationale: string; technical_notes: string; sources: Related<{ name: string }>; trend_signals: Related<{ title: string }>; publisher_feature_observations: Related<{ observed_feature: string }> };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -84,11 +85,17 @@ function mapPublisherWatchlistItem(item: DatabasePublisherWatchlistItem): Publis
   return { sourceId: source.id, publisher: source.name, region: regions[item.region], market: item.market, priority: item.priority };
 }
 
+function mapFeatureLabItem(item: DatabaseFeatureLabItem): FeatureLabItem {
+  const source = Array.isArray(item.sources) ? item.sources[0] : item.sources; const trend = Array.isArray(item.trend_signals) ? item.trend_signals[0] : item.trend_signals; const observation = Array.isArray(item.publisher_feature_observations) ? item.publisher_feature_observations[0] : item.publisher_feature_observations;
+  const level = { high: "Hoch", medium: "Mittel", low: "Niedrig" } as const; const visibility = { clear: "Klar sichtbar", partial: "Teilweise sichtbar", unclear: "Unklar" } as const; const priority = { now: "Jetzt", watch: "Beobachten", later: "Später" } as const; const status = { research: "Recherche", evaluate: "Bewerten", build: "Nachbauen", done: "Erledigt" } as const;
+  return { id: item.id, publisher: source?.name ?? "Unbekannter Publisher", productName: item.product_name, featureDescription: item.feature_description, referenceUrl: item.reference_url, screenshotUrl: item.screenshot_url, copyability: level[item.copyability], implementationEffort: level[item.implementation_effort], visibility: visibility[item.visibility], productValue: level[item.product_value], buildPriority: priority[item.build_priority], status: status[item.status], rationale: item.rationale, technicalNotes: item.technical_notes, trendTitle: trend?.title ?? null, observationTitle: observation?.observed_feature ?? null };
+}
+
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult, featureLabResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
@@ -98,6 +105,7 @@ export async function getDashboardData() {
       supabase.from("trend_feature_assessments").select("trend_id,product_feature_id,status,rationale"),
       supabase.from("publisher_feature_observations").select("id,observed_feature,platforms,status,evidence_url,evidence_label,evidence_quality,observed_at,notes,sources(name),product_features(id,title),trend_signals(id,title)").order("observed_at", { ascending: false }),
       supabase.from("publisher_watchlist").select("region,market,priority,sources(id,name)").order("region").order("priority"),
+      supabase.from("feature_lab_items").select("id,product_name,feature_description,reference_url,screenshot_url,copyability,implementation_effort,visibility,product_value,build_priority,status,rationale,technical_notes,sources(name),trend_signals(title),publisher_feature_observations(observed_feature)").order("created_at", { ascending: false }),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -112,9 +120,10 @@ export async function getDashboardData() {
     const trends = trendsResult.error ? [] : ((trendsResult.data ?? []) as DatabaseTrend[]).map((item) => mapTrend(item, evidenceResult.error ? [] : (evidenceResult.data ?? []) as DatabaseTrendEvidence[], assessmentsResult.error ? [] : (assessmentsResult.data ?? []) as DatabaseTrendAssessment[]));
     const publisherObservations = publisherObservationsResult.error ? [] : ((publisherObservationsResult.data ?? []) as DatabasePublisherFeatureObservation[]).map(mapPublisherObservation);
     const publisherWatchlist = publisherWatchlistResult.error ? [] : ((publisherWatchlistResult.data ?? []) as DatabasePublisherWatchlistItem[]).map(mapPublisherWatchlistItem).filter((item): item is PublisherWatchlistItem => item !== null);
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, connected: true, loadError: false };
+    const featureLabItems = featureLabResult.error ? [] : ((featureLabResult.data ?? []) as DatabaseFeatureLabItem[]).map(mapFeatureLabItem);
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], connected: false, loadError: true };
   }
 }

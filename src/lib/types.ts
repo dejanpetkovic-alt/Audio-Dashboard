@@ -37,3 +37,8 @@ export type PublisherWatchlistItem = {
   sourceId: string; publisher: string; region: "DACH" | "Europa" | "Nordamerika";
   market: string; priority: number;
 };
+
+export type FeatureLabItem = {
+  id: string; publisher: string; productName: string; featureDescription: string; referenceUrl: string; screenshotUrl: string | null;
+  copyability: "Hoch" | "Mittel" | "Niedrig"; implementationEffort: "Niedrig" | "Mittel" | "Hoch"; visibility: "Klar sichtbar" | "Teilweise sichtbar" | "Unklar"; productValue: "Hoch" | "Mittel" | "Niedrig"; buildPriority: "Jetzt" | "Beobachten" | "Später"; status: "Recherche" | "Bewerten" | "Nachbauen" | "Erledigt"; rationale: string; technicalNotes: string; trendTitle: string | null; observationTitle: string | null;
+};

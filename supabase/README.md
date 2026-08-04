@@ -34,4 +34,6 @@ Run `migrations/20260803_add_case_intelligence.sql` to add the relevance score, 
 
 Run `migrations/20260804_add_case_standard.sql` to add the complete structured signal standard for each case.
 
+Run `migrations/20260804_add_feature_lab.sql` to add the Feature-Lab / Nachbau-Backlog.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.
