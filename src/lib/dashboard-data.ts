@@ -1,6 +1,6 @@
 import type { Case, FeatureLabItem, Metric, ProductFeature, PublisherFeatureObservation, PublisherWatchlistItem, TrendSignal } from "./types";
 import { getSupabaseAdmin } from "./supabase";
-import type { FeatureDiscoveryGroup, PublisherScanTargetOverview } from "./discovery-types";
+import type { FeatureDiscoveryGroup, PublisherScanTargetOverview, WeeklyFeatureReview } from "./discovery-types";
 
 type DatabaseMetric = { kind: string; value_numeric: number | null; value_text: string | null; unit: string | null; period: string | null; evidence_url: string; evidence_label: string };
 type DatabaseCase = {
@@ -23,6 +23,7 @@ type DatabasePublisherWatchlistItem = { region: "dach" | "europe" | "north_ameri
 type DatabaseFeatureLabItem = { id: string; product_name: string; feature_description: string; reference_url: string; screenshot_url: string | null; copyability: "high" | "medium" | "low"; implementation_effort: "low" | "medium" | "high"; visibility: "clear" | "partial" | "unclear"; product_value: "high" | "medium" | "low"; build_priority: "now" | "watch" | "later"; status: "research" | "evaluate" | "build" | "done"; rationale: string; technical_notes: string; assignee: string; detected_tech: string[]; inspection_status: "pending" | "scanned" | "unavailable"; implementation_brief: string; created_at: string; sources: Related<{ name: string }>; trend_signals: Related<{ title: string }>; publisher_feature_observations: Related<{ observed_feature: string }> };
 type DatabaseDiscoveryGroup = { id: string; feature_key: string; title: string; medium: "audio" | "video" | "both"; description: string; prototype_brief: string; publisher_feature_findings: Array<{ id: string; publisher_source_id: string; evidence_url: string; evidence_label: string; page_excerpt: string; platforms: string[]; region: "dach" | "europe" | "north_america"; evidence_quality: "direct" | "to_verify"; technical_signals: string[]; screenshot_url: string | null; first_seen_at: string; last_seen_at: string; sources: Related<{ name: string }> }> | null };
 type DatabaseScanTarget = { id: string; publisher_source_id: string; url: string; target_type: "website" | "audio_hub" | "video_hub" | "help" | "app_store"; active: boolean; sources: Related<{ name: string }> };
+type DatabaseWeeklyFeatureReview = { feature_group_id: string; week_start: string; status: "selected" | "dismissed" };
 
 export type SourceOverview = {
   id: string; name: string; homepageUrl: string; feedUrl: string | null; access: "public" | "member_link_only";
@@ -105,9 +106,9 @@ function mapScanTarget(item: DatabaseScanTarget): PublisherScanTargetOverview { 
 
 export async function getDashboardData() {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], connected: false, loadError: false };
+  if (!supabase) return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], weeklyFeatureReviews: [] as WeeklyFeatureReview[], connected: false, loadError: false };
   try {
-    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult, featureLabResult, discoveryResult, scanTargetsResult] = await Promise.all([
+    const [casesResult, sourcesResult, runsResult, featuresResult, trendsResult, evidenceResult, assessmentsResult, publisherObservationsResult, publisherWatchlistResult, featureLabResult, discoveryResult, scanTargetsResult, weeklyReviewsResult] = await Promise.all([
       supabase.from("cases").select("*, sources(name), performance_metrics(kind,value_numeric,value_text,unit,period,evidence_url,evidence_label)").order("published_at", { ascending: false }),
       supabase.from("sources").select("id,name,homepage_url,feed_url,access,active,last_fetched_at").order("name"),
       supabase.from("ingestion_runs").select("source_id,status,started_at,error").order("started_at", { ascending: false }),
@@ -120,6 +121,7 @@ export async function getDashboardData() {
       supabase.from("feature_lab_items").select("id,product_name,feature_description,reference_url,screenshot_url,copyability,implementation_effort,visibility,product_value,build_priority,status,rationale,technical_notes,assignee,detected_tech,inspection_status,implementation_brief,created_at,sources(name),trend_signals(title),publisher_feature_observations(observed_feature)").order("created_at", { ascending: false }),
       supabase.from("publisher_feature_groups").select("id,feature_key,title,medium,description,prototype_brief,publisher_feature_findings(id,publisher_source_id,evidence_url,evidence_label,page_excerpt,platforms,region,evidence_quality,technical_signals,screenshot_url,first_seen_at,last_seen_at,sources(name))").order("updated_at", { ascending: false }),
       supabase.from("publisher_scan_targets").select("id,publisher_source_id,url,target_type,active,sources(name)").order("created_at"),
+      supabase.from("weekly_feature_reviews").select("feature_group_id,week_start,status").order("week_start", { ascending: false }),
     ]);
     if (casesResult.error) throw new Error(`Supabase cases query failed: ${casesResult.error.message}`);
     if (sourcesResult.error) throw new Error(`Supabase sources query failed: ${sourcesResult.error.message}`);
@@ -137,9 +139,10 @@ export async function getDashboardData() {
     const featureLabItems = featureLabResult.error ? [] : ((featureLabResult.data ?? []) as DatabaseFeatureLabItem[]).map(mapFeatureLabItem);
     const discoveryGroups = discoveryResult.error ? [] : ((discoveryResult.data ?? []) as DatabaseDiscoveryGroup[]).map(mapDiscoveryGroup);
     const scanTargets = scanTargetsResult.error ? [] : ((scanTargetsResult.data ?? []) as DatabaseScanTarget[]).map(mapScanTarget);
-    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, discoveryGroups, scanTargets, connected: true, loadError: false };
+    const weeklyFeatureReviews = weeklyReviewsResult.error ? [] : ((weeklyReviewsResult.data ?? []) as DatabaseWeeklyFeatureReview[]).map((item) => ({ groupId: item.feature_group_id, weekStart: item.week_start, status: item.status === "selected" ? "Ausgewählt" : "Ausgeblendet" }));
+    return { cases: ((casesResult.data ?? []) as DatabaseCase[]).map(mapCase), sourceNames: ["Alle Quellen", ...sources.filter((source) => source.active).map((source) => source.name)], sources, features: features.length ? features : featureFallback, trends, publisherObservations, publisherWatchlist, featureLabItems, discoveryGroups, scanTargets, weeklyFeatureReviews, connected: true, loadError: false };
   } catch (error) {
     console.error("Media Pulse database load failed:", error);
-    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], connected: false, loadError: true };
+    return { cases: [] as Case[], sourceNames: sourceFallback, sources: [] as SourceOverview[], features: featureFallback, trends: [] as TrendSignal[], publisherObservations: [] as PublisherFeatureObservation[], publisherWatchlist: [] as PublisherWatchlistItem[], featureLabItems: [] as FeatureLabItem[], discoveryGroups: [] as FeatureDiscoveryGroup[], scanTargets: [] as PublisherScanTargetOverview[], weeklyFeatureReviews: [] as WeeklyFeatureReview[], connected: false, loadError: true };
   }
 }
