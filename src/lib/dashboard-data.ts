@@ -7,6 +7,7 @@ type DatabaseCase = {
   sector: "publisher" | "other_industry"; market: "dach" | "international"; platform: "web" | "app" | "web_and_app";
   format: string | null; tags: string[]; published_at: string | null; discovered_at: string; status: "review" | "published" | "rejected";
   relevance_score: number; priority: "review_now" | "watch" | "background"; signal_type: "product" | "feature" | "trend" | "case" | "analysis" | "report";
+  region: "dach" | "europe" | "north_america" | "global"; categories: string[]; subcategory: string | null; affected_platforms: string[]; publisher_related: boolean; why_relevant: string | null; observation_status: "read" | "watch" | "test" | "share"; examples_mentioned: boolean; ai_relevance: "low" | "medium" | "high"; audio_relevance: "low" | "medium" | "high"; video_relevance: "low" | "medium" | "high";
   sources: { name: string } | null; performance_metrics: DatabaseMetric[] | null;
 };
 type DatabaseSource = { id: string; name: string; homepage_url: string; feed_url: string | null; access: "public" | "member_link_only"; active: boolean; last_fetched_at: string | null };
@@ -52,6 +53,7 @@ function mapCase(item: DatabaseCase): Case {
     status: label(item.status) as Case["status"], metrics: (item.performance_metrics ?? []).map(mapMetric),
     context: item.excerpt ?? "Noch nicht ergänzt.", action: item.summary ?? "Noch nicht ergänzt.", isNew: false,
     relevanceScore: item.relevance_score ?? 3, priority: item.priority === "review_now" ? "Sofort prüfen" : item.priority === "background" ? "Hintergrund" : "Beobachten", signalType: ({ product: "Produkt", feature: "Feature", trend: "Trend", case: "Case", analysis: "Analyse", report: "Report" } as const)[item.signal_type ?? "case"],
+    region: ({ dach: "DACH", europe: "Europa", north_america: "Nordamerika", global: "Global" } as const)[item.region ?? (item.market === "dach" ? "dach" : "global")], categories: item.categories ?? [], subcategory: item.subcategory ?? undefined, affectedPlatforms: item.affected_platforms ?? [], publisherRelated: item.publisher_related ?? item.sector === "publisher", whyRelevant: item.why_relevant ?? item.summary ?? "", observationStatus: ({ read: "Lesen", watch: "Beobachten", test: "Testen", share: "Weitergeben" } as const)[item.observation_status ?? "watch"], examplesMentioned: item.examples_mentioned ?? item.sector === "publisher", aiRelevance: ({ low: "Niedrig", medium: "Mittel", high: "Hoch" } as const)[item.ai_relevance ?? "low"], audioRelevance: ({ low: "Niedrig", medium: "Mittel", high: "Hoch" } as const)[item.audio_relevance ?? "low"], videoRelevance: ({ low: "Niedrig", medium: "Mittel", high: "Hoch" } as const)[item.video_relevance ?? "low"],
   };
 }
 

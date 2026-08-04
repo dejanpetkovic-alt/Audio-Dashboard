@@ -10,6 +10,7 @@ export type Case = {
   format: string; tags: string[]; publishedAt: string; discoveredAt?: string; status: Status; metrics: Metric[];
   action: string; context: string; saved?: boolean; isNew?: boolean;
   relevanceScore?: number; priority?: "Sofort prüfen" | "Beobachten" | "Hintergrund"; signalType?: "Produkt" | "Feature" | "Trend" | "Case" | "Analyse" | "Report";
+  region?: "DACH" | "Europa" | "Nordamerika" | "Global"; categories?: string[]; subcategory?: string; affectedPlatforms?: string[]; publisherRelated?: boolean; whyRelevant?: string; observationStatus?: "Lesen" | "Beobachten" | "Testen" | "Weitergeben"; examplesMentioned?: boolean; aiRelevance?: "Niedrig" | "Mittel" | "Hoch"; audioRelevance?: "Niedrig" | "Mittel" | "Hoch"; videoRelevance?: "Niedrig" | "Mittel" | "Hoch";
 };
 
 export type ProductFeature = {

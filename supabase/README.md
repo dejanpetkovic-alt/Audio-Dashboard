@@ -32,4 +32,6 @@ Run `migrations/20260803_add_publisher_evidence_quality.sql` to add evidence qua
 
 Run `migrations/20260803_add_case_intelligence.sql` to add the relevance score, action priority and signal type used by the Daily Briefing.
 
+Run `migrations/20260804_add_case_standard.sql` to add the complete structured signal standard for each case.
+
 If you created the project with **Automatically expose new tables** disabled, also run `migrations/20260803_grant_server_access.sql`. It grants access only to the server-side `service_role`; public browser roles remain blocked.

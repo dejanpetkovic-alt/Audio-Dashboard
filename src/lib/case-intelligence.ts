@@ -1,4 +1,4 @@
-export type CaseIntelligence = { relevanceScore: number; priority: "review_now" | "watch" | "background"; signalType: "product" | "feature" | "trend" | "case" | "analysis" | "report"; tags: string[] };
+export type CaseIntelligence = { relevanceScore: number; priority: "review_now" | "watch" | "background"; signalType: "product" | "feature" | "trend" | "case" | "analysis" | "report"; tags: string[]; categories: string[]; subcategory: string; affectedPlatforms: string[]; publisherRelated: boolean; whyRelevant: string; observationStatus: "read" | "watch" | "test" | "share"; examplesMentioned: boolean; aiRelevance: "low" | "medium" | "high"; audioRelevance: "low" | "medium" | "high"; videoRelevance: "low" | "medium" | "high" };
 
 const patterns = {
   ai: /\b(ai|artificial intelligence|generative ai|llm|machine learning|ki[- ]generiert|künstliche intelligenz)\b/i,
@@ -22,5 +22,12 @@ export function inferCaseIntelligence(title: string, excerpt: string, sector: "p
   relevanceScore = Math.min(relevanceScore, 5);
   const priority = relevanceScore >= 4 ? "review_now" : relevanceScore === 3 ? "watch" : "background";
   const signalType = patterns.report.test(document) ? "report" : patterns.feature.test(document) ? "feature" : sector === "publisher" ? "case" : patterns.platform.test(document) ? "product" : "analysis";
-  return { relevanceScore, priority, signalType, tags };
+  const categories = [/\b(audio|podcast|voice|listen)\b/i.test(document) ? "Audio" : "Video", sector === "publisher" ? "Publisher" : "Andere Branche", ...tags.filter((tag) => ["KI", "Plattform", "Monetarisierung"].includes(tag))];
+  const affectedPlatforms = ["Spotify", "YouTube", "Meta", "TikTok", "Apple Podcasts", "Google", "LinkedIn", "OpenAI", "Perplexity"].filter((name) => new RegExp(name.replace(" ", "\\s+"), "i").test(document));
+  const aiRelevance = patterns.ai.test(document) ? "high" : "low";
+  const audioRelevance = /\b(audio|podcast|voice|listen)\b/i.test(document) ? "high" : "low";
+  const videoRelevance = /\b(video|youtube|tiktok|reel|shorts)\b/i.test(document) ? "high" : "low";
+  const subcategory = audioRelevance === "high" ? "Audio / Podcast" : videoRelevance === "high" ? "Video / Videopodcast" : signalType;
+  const whyRelevant = `Relevanzscore ${relevanceScore}/5: ${categories.join(", ")} mit ${priority === "review_now" ? "unmittelbarem Prüfbedarf" : "Beobachtungsbedarf"}.`;
+  return { relevanceScore, priority, signalType, tags, categories, subcategory, affectedPlatforms, publisherRelated: sector === "publisher", whyRelevant, observationStatus: priority === "review_now" ? "test" : "watch", examplesMentioned: sector === "publisher", aiRelevance, audioRelevance, videoRelevance };
 }

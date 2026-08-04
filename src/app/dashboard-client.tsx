@@ -50,7 +50,7 @@ export default function Dashboard({ initialCases, sourceNames, sources, features
     <section className="content"><header className="topbar"><div className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cases, Themen oder Quellen durchsuchen…" /></div><div className="header-actions"><button className="icon-button">◌</button><button className="notification">♧<i>3</i></button><span className="avatar small">DP</span></div></header>
       {view === "dashboard" && <DashboardHome approved={approved} initialCases={initialCases} sourceNames={sourceNames} connected={connected} loadError={loadError} medium={medium} sector={sector} source={source} setMedium={setMedium} setSector={setSector} setSource={setSource} onOpen={setActiveCase} saved={saved} onSave={toggleSaved} onReview={() => setView("review")} />}
       {view === "offer" && <FeatureInventory features={features} />}
-      {view === "trends" && <TrendRadar trends={trends} features={features} />}
+      {view === "trends" && <TrendRadar trends={trends} features={features} sources={sources} />}
       {view === "publisherFeatures" && <PublisherFeatureMonitor observations={publisherObservations} sources={sources} features={features} trends={trends} watchlist={publisherWatchlist} />}
       {view === "review" && <ReviewQueue cases={initialCases} onOpen={setActiveCase} onEdit={setEditingCase} reviewedIds={approvedIds} onReview={async (id, decision) => { const response = await fetch(`/api/cases/${id}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision }) }); if (response.ok) setApprovedIds((current) => [...current, id]); }} />}
       {view === "sources" && <Sources sources={sources} />}
