@@ -8,6 +8,8 @@ import FeatureInventory from "./feature-inventory";
 import TrendRadar from "./trend-radar";
 import PublisherFeatureMonitor from "./publisher-feature-monitor";
 import TopicHub from "./topic-hub";
+import ExecutiveMetrics from "./executive-metrics";
+import TrendTimeline from "./trend-timeline";
 
 const mediumOptions: ("Alle" | Medium)[] = ["Alle", "Audio", "Video"];
 const sectorOptions: ("Alle" | Sector)[] = ["Alle", "Publisher", "Andere Branchen"];
@@ -27,7 +29,7 @@ function DailyBriefing({ cases, onOpen }: { cases: Case[]; onOpen: (item: Case) 
 }
 
 function DashboardHome(props: React.ComponentProps<typeof DashboardHomeContent>) {
-  return <><DailyBriefing cases={props.initialCases} onOpen={props.onOpen} /><TopicHub cases={props.initialCases} onOpen={props.onOpen} /><DashboardHomeContent {...props} /></>;
+  return <><ExecutiveMetrics cases={props.initialCases} /><DailyBriefing cases={props.initialCases} onOpen={props.onOpen} /><TrendTimeline cases={props.initialCases} /><TopicHub cases={props.initialCases} onOpen={props.onOpen} /><DashboardHomeContent {...props} /></>;
 }
 
 export default function Dashboard({ initialCases, sourceNames, sources, features, trends, publisherObservations, publisherWatchlist, connected, loadError }: { initialCases: Case[]; sourceNames: string[]; sources: SourceOverview[]; features: ProductFeature[]; trends: TrendSignal[]; publisherObservations: PublisherFeatureObservation[]; publisherWatchlist: PublisherWatchlistItem[]; connected: boolean; loadError: boolean }) {
